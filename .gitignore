@@ -1,0 +1,56 @@
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.swp
+*.swo
+*~
+
+# Build
+target/
+build/
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+
+# Maven
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.backup
+release.properties
+dependency-reduced-pom.xml
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Database
+postgres_data/
+mongo_data/
+redis_data/
+zookeeper_data/
+zookeeper_logs/
+kafka_data/
+
+# Environment
+.env
+.env.local
+*.properties.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Misc
+.gradle/
+.DS_Store
+*.swp
