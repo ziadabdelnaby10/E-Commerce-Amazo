@@ -1,0 +1,24 @@
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: identity-service
+          uri: lb://identity-service
+          predicates:
+            - Path=/auth/**
+        - id: tenant-service
+          uri: lb://tenant-service
+          predicates:
+            - Path=/tenants/**
+        - id: crm-service
+          uri: lb://crm-service
+          predicates:
+            - Path=/crm/**
+        - id: billing-service
+          uri: lb://billing-service
+          predicates:
+            - Path=/billing/**
+        - id: reporting-service
+          uri: lb://reporting-service
+          predicates:
+            - Path=/reports/**

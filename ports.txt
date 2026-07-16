@@ -1,0 +1,28 @@
+# Spring Boot Services
+9999  - config-server
+8761  - discovery-server (Eureka)
+9080  - api-gateway
+
+# Business Services (not yet scaffolded)
+8001  - user-service        (planned)
+8002  - order-service       (planned)
+8003  - inventory-service   (planned)
+8004  - payment-service     (planned)
+8005  - notification-service (planned)
+
+# Infrastructure (Docker Compose)
+5434  - PostgreSQL (host) -> 5432 (container)
+27017 - MongoDB
+6379  - Redis
+2181  - Zookeeper
+9092  - Kafka (external / localhost)
+29092 - Kafka (internal / Docker network)
+8080  - Kafka UI
+9090  - Prometheus
+3000  - Grafana
+1025  - MailDev SMTP
+1080  - MailDev Web UI
+
+# Disabled / commented out
+5050  - PgAdmin (commented out)
+8081  - Mongo Express (commented out)
