@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: config-service
+  cloud:
+    config:
+      server:
+        native:
+          search-locations: classpath:/config
+  profiles:
+    active: native
+
+server:
+  port: 9999
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
