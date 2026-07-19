@@ -1,0 +1,32 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "maven"
+    directory: "/config-service"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "maven"
+    directory: "/customer-service"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "maven"
+    directory: "/discovery-service"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "maven"
+    directory: "/gateway-service"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+

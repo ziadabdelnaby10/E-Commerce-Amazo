@@ -1,0 +1,9 @@
+# Replace @your-github-username with your actual GitHub handle.
+* @your-github-username
+
+/.github/ @your-github-username
+/config-service/ @your-github-username
+/customer-service/ @your-github-username
+/discovery-service/ @your-github-username
+/gateway-service/ @your-github-username
+
