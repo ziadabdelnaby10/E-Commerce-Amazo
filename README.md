@@ -297,6 +297,25 @@ Target metrics for your learning:
    psql -h localhost -U postgres -d user_db
    ```
 
+## 🤖 CI Workflow (GitHub Actions)
+
+- Matrix scope is limited to currently scaffolded Maven services:
+  - `config-service`
+  - `customer-service`
+  - `discovery-service`
+  - `gateway-service`
+- Pull requests run fast checks with `mvn test` per changed service.
+- Pushes to `main` run stricter checks with `mvn verify` per changed service.
+- Shared changes (for example `.github/`, `docs/`, `docker-compose.yml`, `README.md`) trigger full matrix runs.
+
+### Expanding the Matrix
+
+Add a new service to `.github/workflows/ci-matrix.yml` only after all are true:
+
+1. The service has its own `pom.xml`.
+2. The service has `mvnw` and `mvnw.cmd` in its folder.
+3. `mvn test` passes locally inside that service directory.
+
 ## 🗺️ Learning Path (4-6 weeks)
 
 ### Week 1: Foundations

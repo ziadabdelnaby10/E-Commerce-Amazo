@@ -1,14 +1,14 @@
 # Spring Boot Services
-9999  - config-server
+8888  - config-server
 8761  - discovery-server (Eureka)
 9080  - api-gateway
 
 # Business Services (not yet scaffolded)
-8001  - user-service        (planned)
-8002  - order-service       (planned)
-8003  - inventory-service   (planned)
-8004  - payment-service     (planned)
-8005  - notification-service (planned)
+9001  - customer-service     (planned)
+****  - order-service        (planned)
+****  - inventory-service    (planned)
+****  - payment-service      (planned)
+****  - notification-service (planned)
 
 # Infrastructure (Docker Compose)
 5434  - PostgreSQL (host) -> 5432 (container)

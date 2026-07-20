@@ -1,0 +1,12 @@
+spring:
+  mongodb:
+    username: ${MONGO_USERNAME:root}
+    password: ${MONGO_PASSWORD:password}
+    host: ${MONGO_HOST:localhost}
+    port: ${MONGO_PORT:27017}
+    database: ${MONGO_DATABASE:customer}
+    authentication-database: ${MONGO_AUTH_DB:admin}
+server:
+  port: 9001
+  servlet:
+    context-path: /api/
