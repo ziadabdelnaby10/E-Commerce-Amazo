@@ -42,18 +42,17 @@ class CustomerServiceE2ETest {
 
     @Container
     static GenericContainer<?> mongoContainer = new GenericContainer<>(DockerImageName.parse("mongo:7.0.3"))
-            .withEnv("MONGO_INITDB_ROOT_USERNAME", "root")
-            .withEnv("MONGO_INITDB_ROOT_PASSWORD", "password")
             .withExposedPorts(MONGO_PORT);
 
     @DynamicPropertySource
     static void mongoProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.data.mongodb.host", mongoContainer::getHost);
-        registry.add("spring.data.mongodb.port", () -> mongoContainer.getMappedPort(MONGO_PORT));
-        registry.add("spring.data.mongodb.username", () -> "root");
-        registry.add("spring.data.mongodb.password", () -> "password");
-        registry.add("spring.data.mongodb.database", () -> "customer-test");
-        registry.add("spring.data.mongodb.authentication-database", () -> "admin");
+        // Support both key namespaces so tests remain stable across Boot property model changes.
+        registry.add("spring.mongodb.uri", CustomerServiceE2ETest::mongoUri);
+        registry.add("spring.data.mongodb.uri", CustomerServiceE2ETest::mongoUri);
+    }
+
+    private static String mongoUri() {
+        return "mongodb://" + mongoContainer.getHost() + ":" + mongoContainer.getMappedPort(MONGO_PORT) + "/customer-test";
     }
 
     @LocalServerPort
@@ -182,7 +181,6 @@ class CustomerServiceE2ETest {
         }
     }
 }
-
 
 
 

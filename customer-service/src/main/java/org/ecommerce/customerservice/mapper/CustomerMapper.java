@@ -14,6 +14,9 @@ public interface CustomerMapper {
     Customer toCustomer(CustomerRequest request);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mappings({
+            @Mapping(target = "id", ignore = true)
+    })
     void partialUpdate(CustomerRequest request, @MappingTarget Customer customer);
 
     CustomerResponse toCustomerResponse(Customer customer);
