@@ -5,30 +5,34 @@ spring:
   cloud:
     gateway:
       routes:
+        - id: inventory-service
+          uri: lb://inventory-service
+          predicates:
+            - Path=/api/v1/inventory/**
+          filters:
+#            - name: CircuitBreaker
+#              args:
+#                name: inventoryServiceCircuitBreaker
+#                fallbackUri: forward:/fallback/inventory
         - id: customer-service
           uri: lb://customer-service
           predicates:
             - Path=/api/v1/customers/**
           filters:
-            - name: CircuitBreaker
-              args:
-                name: customerServiceCircuitBreaker
-                fallbackUri: forward:/fallback/customers
-            - name: Retry
-              args:
-                retries: 2
-                methods: GET
-                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT,INTERNAL_SERVER_ERROR
-                backoff:
-                  firstBackoff: 50ms
-                  maxBackoff: 500ms
-                  factor: 2
-                  basedOnPreviousValue: false
-
-eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka
+#            - name: CircuitBreaker
+#              args:
+#                name: customerServiceCircuitBreaker
+#                fallbackUri: forward:/fallback/customers
+#            - name: Retry
+#              args:
+#                retries: 2
+#                methods: GET
+#                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT,INTERNAL_SERVER_ERROR
+#                backoff:
+#                  firstBackoff: 50ms
+#                  maxBackoff: 500ms
+#                  factor: 2
+#                  basedOnPreviousValue: false
 
 management:
   endpoints:
