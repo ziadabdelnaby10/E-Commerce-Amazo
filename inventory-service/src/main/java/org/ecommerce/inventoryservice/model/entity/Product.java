@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -72,7 +74,8 @@ public class Product {
     private Long version;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", columnDefinition = "product_status")
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "status")
     @Builder.Default
     private ProductStatus status = ProductStatus.ACTIVE;
 }

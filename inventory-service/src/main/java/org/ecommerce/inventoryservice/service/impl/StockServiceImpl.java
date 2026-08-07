@@ -46,16 +46,18 @@ public class StockServiceImpl implements StockService {
     @Transactional
     @Override
     public StockLevel saveEmptyStockLevel(Product product, ProductRequest request, Instant now) {
-        return StockLevel.builder()
+        StockLevel emptyStockLevel = StockLevel.builder()
                 .product(product)
                 .quantityAvailable(request.initialQuantity() == null ? 0 : request.initialQuantity())
                 .quantityReserved(0)
                 .quantityDamaged(0)
+                .totalQuantity(request.initialQuantity() == null ? 0 : request.initialQuantity())
                 .warehouseLocation(request.warehouseLocation())
                 .createdAt(now)
                 .updatedAt(now)
                 .version(0L)
                 .build();
+        return saveStockLevel(emptyStockLevel);
     }
 
     @Override

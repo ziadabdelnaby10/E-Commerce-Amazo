@@ -16,7 +16,6 @@ public interface StockService {
 
     StockLevel saveStockLevel(StockLevel stockLevel);
 
-    @Transactional
     StockLevel saveEmptyStockLevel(Product product, ProductRequest request, Instant now);
 
     List<LowStockAlertResponse> listLowStockAlerts(boolean includeResolved);
