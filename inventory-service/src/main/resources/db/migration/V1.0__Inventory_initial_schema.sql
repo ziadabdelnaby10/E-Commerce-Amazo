@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS stock_levels (
     quantity_available INTEGER NOT NULL DEFAULT 0,
     quantity_reserved INTEGER NOT NULL DEFAULT 0,  -- Pending orders
     quantity_damaged INTEGER NOT NULL DEFAULT 0,
-    total_quantity GENERATED ALWAYS AS (quantity_available + quantity_reserved + quantity_damaged) STORED,
+    total_quantity INTEGER GENERATED ALWAYS AS (quantity_available + quantity_reserved + quantity_damaged) STORED,
     warehouse_location VARCHAR(100),  -- e.g., 'A-1-5'
     last_counted_at TIMESTAMP,  -- Physical inventory date
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

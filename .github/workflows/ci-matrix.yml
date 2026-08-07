@@ -8,6 +8,16 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      run_mode:
+        description: "Which test lane to run"
+        required: true
+        default: both
+        type: choice
+        options:
+          - both
+          - pr
+          - verify
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -20,6 +30,8 @@ jobs:
     outputs:
       matrix: ${{ steps.build-matrix.outputs.matrix }}
       has-services: ${{ steps.build-matrix.outputs.has-services }}
+      run-pr: ${{ steps.build-matrix.outputs.run-pr }}
+      run-verify: ${{ steps.build-matrix.outputs.run-verify }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -37,6 +49,7 @@ jobs:
             "customer-service"
             "discovery-service"
             "gateway-service"
+            "inventory-service"
           )
 
           changed_files=""
@@ -69,6 +82,7 @@ jobs:
               "customer-service",
               "discovery-service",
               "gateway-service",
+              "inventory-service",
           ]
 
           changed_files_raw = os.environ.get("CHANGED_FILES", "")
@@ -107,16 +121,36 @@ jobs:
           matrix = {"service": selected}
           has_services = "true" if selected else "false"
 
+          event_name = os.environ.get("GITHUB_EVENT_NAME", "")
+          run_mode = os.environ.get("RUN_MODE", "both").strip().lower() or "both"
+
+          if event_name == "pull_request":
+              run_pr = "true"
+              run_verify = "false"
+          elif event_name == "push":
+              run_pr = "false"
+              run_verify = "true"
+          elif event_name == "workflow_dispatch":
+              run_pr = "true" if run_mode in {"both", "pr"} else "false"
+              run_verify = "true" if run_mode in {"both", "verify"} else "false"
+          else:
+              run_pr = "false"
+              run_verify = "false"
+
           output_file = pathlib.Path(os.environ["GITHUB_OUTPUT"])
           with output_file.open("a", encoding="utf-8") as fh:
               fh.write(f"matrix={json.dumps(matrix)}\\n")
               fh.write(f"has-services={has_services}\\n")
+              fh.write(f"run-pr={run_pr}\\n")
+              fh.write(f"run-verify={run_verify}\\n")
           PY
+        env:
+          RUN_MODE: ${{ github.event.inputs.run_mode || 'both' }}
 
   pr-unit-tests:
     name: PR unit tests (${{ matrix.service }})
     needs: detect-services
-    if: github.event_name == 'pull_request' && needs.detect-services.outputs.has-services == 'true'
+    if: needs.detect-services.outputs.has-services == 'true' && needs.detect-services.outputs.run-pr == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -143,7 +177,7 @@ jobs:
   main-verify:
     name: Main verify (${{ matrix.service }})
     needs: detect-services
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect-services.outputs.has-services == 'true'
+    if: needs.detect-services.outputs.has-services == 'true' && needs.detect-services.outputs.run-verify == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

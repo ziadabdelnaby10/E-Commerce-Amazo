@@ -6,7 +6,7 @@
 # Business Services (not yet scaffolded)
 9001  - customer-service     (planned)
 ****  - order-service        (planned)
-****  - inventory-service    (planned)
+9002  - inventory-service    (planned)
 ****  - payment-service      (planned)
 ****  - notification-service (planned)
 
