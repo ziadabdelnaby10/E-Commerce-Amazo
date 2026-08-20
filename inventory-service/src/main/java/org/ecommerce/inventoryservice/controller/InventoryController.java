@@ -47,14 +47,14 @@ public class InventoryController {
             @ApiResponse(responseCode = "400", description = "Validation error", content = @Content),
             @ApiResponse(responseCode = "409", description = "SKU already exists", content = @Content)
     })
-    @PostMapping
+    @PostMapping("/product")
     public ResponseEntity<ProductResponse> createProduct(@Valid @RequestBody ProductRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(productService.createProduct(request));
     }
 
     @Operation(summary = "List products", description = "Returns all products, optionally filtered by status.")
     @ApiResponse(responseCode = "200", description = "Product list returned")
-    @GetMapping
+    @GetMapping("/product")
     public ResponseEntity<List<ProductResponse>> list(
             @Parameter(description = "Optional product status filter") @RequestParam(required = false) ProductStatus status) {
         return ResponseEntity.ok(productService.listProducts(status));
@@ -65,7 +65,7 @@ public class InventoryController {
             @ApiResponse(responseCode = "200", description = "Product found"),
             @ApiResponse(responseCode = "404", description = "Product not found", content = @Content)
     })
-    @GetMapping("/{productId}")
+    @GetMapping("/product/{productId}")
     public ResponseEntity<ProductResponse> get(
             @Parameter(description = "Product identifier", required = true) @PathVariable Long productId) {
         return ResponseEntity.ok(productService.getProduct(productId));
@@ -78,7 +78,7 @@ public class InventoryController {
             @ApiResponse(responseCode = "404", description = "Product not found", content = @Content),
             @ApiResponse(responseCode = "409", description = "SKU already exists", content = @Content)
     })
-    @PutMapping("/{productId}")
+    @PutMapping("/product/{productId}")
     public ResponseEntity<ProductResponse> update(
             @Parameter(description = "Product identifier", required = true) @PathVariable Long productId,
             @Valid @RequestBody ProductUpdateRequest request) {
@@ -91,7 +91,7 @@ public class InventoryController {
             @ApiResponse(responseCode = "400", description = "Invalid status transition", content = @Content),
             @ApiResponse(responseCode = "404", description = "Product not found", content = @Content)
     })
-    @PatchMapping("/{productId}/status")
+    @PatchMapping("/product/{productId}/status")
     public ResponseEntity<ProductResponse> updateStatus(
             @Parameter(description = "Product identifier", required = true) @PathVariable Long productId,
             @Valid @RequestBody ProductStatusUpdateRequest request) {
