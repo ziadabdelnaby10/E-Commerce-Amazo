@@ -1,0 +1,78 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5434/order_db
+    username: postgres
+    password: rootroot
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 30000
+      max-lifetime: 1200000
+      connection-timeout: 20000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+  flyway:
+    baseline-on-migrate: true
+    enabled: true
+    baseline-description: "init"
+    baseline-version: 0
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      acks: all
+      retries: 3
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: order-service-payments
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: record
+
+server:
+  port: 9003
+  servlet:
+    context-path: /api
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+
+application:
+  kafka:
+    topics:
+      order-events: order-events
+      payment-events: payment-events
+      payment-events-dlq: payment-events-dlq
+    outbox:
+      batch-size: 100
+      fixed-delay-ms: 3000
+  config:
+    customer-url: http://localhost:9001/api/v1/customers
+    payment-url: http://localhost:9004/api/v1/payments
+    inventory-url: http://localhost:9002/api/v1/inventory
+
+bootui:
+  enabled: on
+  api-path: /bootui
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus

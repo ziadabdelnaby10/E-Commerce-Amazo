@@ -1,0 +1,50 @@
+spring:
+  application:
+    name: order-service
+  config:
+    import: optional:configserver:http://localhost:8888
+  datasource:
+    url: jdbc:postgresql://localhost:5434/order_db
+    username: postgres
+    password: rootroot
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: order-service-payments
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: record
+
+server:
+  port: 9003
+  servlet:
+    context-path: /api
+
+application:
+  kafka:
+    topics:
+      order-events: order-events
+      payment-events: payment-events
+      payment-events-dlq: payment-events-dlq
+    outbox:
+      batch-size: 100
+      fixed-delay-ms: 3000
+  config:
+    inventory-url: http://localhost:9002/api/v1/inventory
+    payment-url: http://localhost:9004/api/v1/payments
