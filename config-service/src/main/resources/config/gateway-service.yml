@@ -9,16 +9,26 @@ spring:
           uri: lb://inventory-service
           predicates:
             - Path=/api/v1/inventory/**
-          filters:
+#          filters:
 #            - name: CircuitBreaker
 #              args:
 #                name: inventoryServiceCircuitBreaker
 #                fallbackUri: forward:/fallback/inventory
+        - id: order-service
+          uri: lb://order-service
+          predicates:
+            - Path=/api/v1/orders/**
+#          filters:
+        - id: payment-service
+          uri: lb://payment-service
+          predicates:
+            - Path=/api/v1/payments/**
+#          filters:
         - id: customer-service
           uri: lb://customer-service
           predicates:
             - Path=/api/v1/customers/**
-          filters:
+#          filters:
 #            - name: CircuitBreaker
 #              args:
 #                name: customerServiceCircuitBreaker

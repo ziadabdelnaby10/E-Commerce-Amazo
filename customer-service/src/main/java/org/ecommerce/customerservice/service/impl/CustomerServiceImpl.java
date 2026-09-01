@@ -23,6 +23,7 @@ public class CustomerServiceImpl implements CustomerService {
     @Transactional
     @Override
     public String createCustomer(CustomerRequest request) {
+        //TODO No Passwords validated and email is not unique
         var customer = customerMapper.toCustomer(request);
         return customerRepository.save(customer).getId();
     }
