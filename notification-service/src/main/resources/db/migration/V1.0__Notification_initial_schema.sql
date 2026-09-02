@@ -98,7 +98,7 @@ CREATE UNIQUE INDEX idx_notification_preferences_user_id ON notification_prefere
 -- =====================================================
 CREATE TABLE IF NOT EXISTS notification_templates (
     id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL,
     type notification_type NOT NULL,
     subject_template VARCHAR(255),  -- For email templates
     body_template TEXT NOT NULL,  -- HTML for email, plain text for SMS
@@ -107,7 +107,8 @@ CREATE TABLE IF NOT EXISTS notification_templates (
     variables JSONB,  -- List of expected variables
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_notification_templates_name_type UNIQUE (name, type)
 );
 
 -- Indexes

@@ -43,6 +43,10 @@ spring:
 #                  maxBackoff: 500ms
 #                  factor: 2
 #                  basedOnPreviousValue: false
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/v1/notifications/**
 
 management:
   endpoints:
