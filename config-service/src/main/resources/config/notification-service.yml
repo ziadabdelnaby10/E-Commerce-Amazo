@@ -1,0 +1,71 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5434/notification_db
+    username: postgres
+    password: rootroot
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 30000
+      max-lifetime: 1200000
+      connection-timeout: 20000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    baseline-on-migrate: true
+    enabled: true
+    baseline-description: "init"
+    baseline-version: 0
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      acks: all
+      retries: 3
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+  mail:
+    host: localhost
+    port: 1025
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+
+server:
+  port: 9005
+  servlet:
+    context-path: /api
+
+application:
+  config:
+    customer-url: http://localhost:9001/api/v1/customers
+    from-address: no-reply@ecommerce.local
+  kafka:
+    topics:
+      order-events: order-events
+      payment-events: payment-events
+      notification-events: notification-events
+      notification-events-dlq: notification-events-dlq
+    consumers:
+      order-group-id: notification-service-orders
+      payment-group-id: notification-service-payments
+  retry:
+    batch-size: 100
+    fixed-delay-ms: 30000
+    base-delay-minutes: 5
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
