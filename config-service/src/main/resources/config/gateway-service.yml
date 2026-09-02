@@ -4,30 +4,32 @@ server:
 spring:
   cloud:
     gateway:
-      routes:
-        - id: inventory-service
-          uri: lb://inventory-service
-          predicates:
-            - Path=/api/v1/inventory/**
+      server:
+        webflux:
+          routes:
+            - id: inventory-service
+              uri: lb://inventory-service
+              predicates:
+                - Path=/api/v1/inventory/**
 #          filters:
 #            - name: CircuitBreaker
 #              args:
 #                name: inventoryServiceCircuitBreaker
 #                fallbackUri: forward:/fallback/inventory
-        - id: order-service
-          uri: lb://order-service
-          predicates:
-            - Path=/api/v1/orders/**
+            - id: order-service
+              uri: lb://order-service
+              predicates:
+                - Path=/api/v1/orders/**
 #          filters:
-        - id: payment-service
-          uri: lb://payment-service
-          predicates:
-            - Path=/api/v1/payments/**
+            - id: payment-service
+              uri: lb://payment-service
+              predicates:
+                - Path=/api/v1/payments/**
 #          filters:
-        - id: customer-service
-          uri: lb://customer-service
-          predicates:
-            - Path=/api/v1/customers/**
+            - id: customer-service
+              uri: lb://customer-service
+              predicates:
+                - Path=/api/v1/customers/**
 #          filters:
 #            - name: CircuitBreaker
 #              args:
@@ -43,13 +45,19 @@ spring:
 #                  maxBackoff: 500ms
 #                  factor: 2
 #                  basedOnPreviousValue: false
-        - id: notification-service
-          uri: lb://notification-service
-          predicates:
-            - Path=/api/v1/notifications/**
+            - id: notification-service
+              uri: lb://notification-service
+              predicates:
+                - Path=/api/v1/notifications/**
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info,prometheus,gateway
+
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
