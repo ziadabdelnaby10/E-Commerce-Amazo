@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS payments (
     id BIGSERIAL PRIMARY KEY,
     payment_id VARCHAR(50) NOT NULL UNIQUE,  -- External payment gateway ID
     order_id BIGINT NOT NULL,  -- Foreign key to Order Service
-    user_id BIGINT NOT NULL,  -- Foreign key to User Service
+    user_id VARCHAR(50) NOT NULL,  -- Foreign key to User Service
     amount DECIMAL(10, 2) NOT NULL CHECK (amount > 0),
     currency VARCHAR(3) DEFAULT 'USD',
     status payment_status DEFAULT 'PENDING',
@@ -69,7 +69,7 @@ CREATE INDEX idx_payments_created_at ON payments(created_at DESC);
 -- =====================================================
 CREATE TABLE IF NOT EXISTS payment_methods (
     id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL,
+    user_id VARCHAR(50) NOT NULL,
     type payment_method_type NOT NULL,
     encrypted_data VARCHAR(500) NOT NULL,  -- Encrypted card/account data
     token VARCHAR(100),  -- Tokenized representation (non-sensitive)
