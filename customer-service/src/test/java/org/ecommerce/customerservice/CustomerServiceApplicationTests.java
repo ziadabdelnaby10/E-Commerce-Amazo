@@ -3,6 +3,11 @@ package org.ecommerce.customerservice;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SpringBootTest(properties = {
         "spring.cloud.config.enabled=false",
@@ -11,7 +16,23 @@ import org.springframework.test.context.ActiveProfiles;
         "spring.cloud.discovery.enabled=false"
 })
 @ActiveProfiles("test")
+@Testcontainers(disabledWithoutDocker = true)
 class CustomerServiceApplicationTests {
+
+    @Container
+    static PostgreSQLContainer<?> postgresContainer = new PostgreSQLContainer<>("postgres:17-alpine")
+            .withDatabaseName("customer_test")
+            .withUsername("postgres")
+            .withPassword("rootroot");
+
+    @DynamicPropertySource
+    static void postgresProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", postgresContainer::getJdbcUrl);
+        registry.add("spring.datasource.username", postgresContainer::getUsername);
+        registry.add("spring.datasource.password", postgresContainer::getPassword);
+        registry.add("spring.flyway.enabled", () -> "true");
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
+    }
 
     @Test
     void contextLoads() {

@@ -10,8 +10,12 @@ import org.ecommerce.inventoryservice.model.entity.Product;
 import org.ecommerce.inventoryservice.model.entity.ProductStatus;
 import org.ecommerce.inventoryservice.model.entity.StockLevel;
 import org.ecommerce.inventoryservice.model.request.ProductRequest;
+import org.ecommerce.inventoryservice.model.request.ReleaseInventoryRequest;
+import org.ecommerce.inventoryservice.model.request.ReserveInventoryItemRequest;
+import org.ecommerce.inventoryservice.model.request.ReserveInventoryRequest;
 import org.ecommerce.inventoryservice.model.request.StockAdjustmentRequest;
 import org.ecommerce.inventoryservice.model.response.LowStockAlertResponse;
+import org.ecommerce.inventoryservice.model.response.ReserveInventoryResponse;
 import org.ecommerce.inventoryservice.model.response.SimpleStockLevelResponse;
 import org.ecommerce.inventoryservice.model.response.StockLevelResponse;
 import org.ecommerce.inventoryservice.repository.LowStockAlertRepository;
@@ -24,7 +28,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -116,6 +122,63 @@ public class StockServiceImpl implements StockService {
         return stockMapper.toStockLevelResponse(stockLevel);
     }
 
+    @Transactional
+    @Override
+    public ReserveInventoryResponse reserveInventory(ReserveInventoryRequest request) {
+        Map<Long, Integer> quantityByProductId = aggregateQuantities(request.items());
+        Map<Long, StockLevel> levelsByProduct = new HashMap<>();
+
+        for (Map.Entry<Long, Integer> entry : quantityByProductId.entrySet()) {
+            StockLevel stockLevel = stockLevelRepository.findByProductId(entry.getKey()).orElse(null);
+            if (stockLevel == null) {
+                return ReserveInventoryResponse.failed("Stock level not found for product ID: " + entry.getKey());
+            }
+            if (stockLevel.getQuantityAvailable() < entry.getValue()) {
+                return ReserveInventoryResponse.failed("Insufficient available stock for product ID: " + entry.getKey());
+            }
+            levelsByProduct.put(entry.getKey(), stockLevel);
+        }
+
+        Instant now = Instant.now();
+        for (Map.Entry<Long, Integer> entry : quantityByProductId.entrySet()) {
+            StockLevel stockLevel = levelsByProduct.get(entry.getKey());
+            int quantity = entry.getValue();
+
+            stockLevel.setQuantityAvailable(stockLevel.getQuantityAvailable() - quantity);
+            stockLevel.setQuantityReserved(stockLevel.getQuantityReserved() + quantity);
+            stockLevel.setUpdatedAt(now);
+            stockLevel.setVersion(Utils.nextVersion(stockLevel.getVersion()));
+        }
+        stockLevelRepository.saveAll(levelsByProduct.values());
+        return ReserveInventoryResponse.success();
+    }
+
+    @Transactional
+    @Override
+    public void releaseInventory(ReleaseInventoryRequest request) {
+        Map<Long, Integer> quantityByProductId = aggregateQuantities(request.items());
+        Instant now = Instant.now();
+
+        for (Map.Entry<Long, Integer> entry : quantityByProductId.entrySet()) {
+            StockLevel stockLevel = stockLevelRepository.findByProductId(entry.getKey()).orElse(null);
+            if (stockLevel == null) {
+                log.warn("Skipping inventory release because stock level does not exist for product {}", entry.getKey());
+                continue;
+            }
+
+            int releasableQuantity = Math.min(entry.getValue(), stockLevel.getQuantityReserved());
+            if (releasableQuantity <= 0) {
+                continue;
+            }
+
+            stockLevel.setQuantityReserved(stockLevel.getQuantityReserved() - releasableQuantity);
+            stockLevel.setQuantityAvailable(stockLevel.getQuantityAvailable() + releasableQuantity);
+            stockLevel.setUpdatedAt(now);
+            stockLevel.setVersion(Utils.nextVersion(stockLevel.getVersion()));
+            stockLevelRepository.save(stockLevel);
+        }
+    }
+
     @Override
     public StockLevel findStockLevelByProductId(Long productId) {
         return stockLevelRepository.findByProductId(productId)
@@ -126,6 +189,14 @@ public class StockServiceImpl implements StockService {
     public SimpleStockLevelResponse getSimpleStockLevel(Long productId) {
         var stocklevel = findStockLevelByProductId(productId);
         return stockMapper.toSimpleResponse(stocklevel);
+    }
+
+    private Map<Long, Integer> aggregateQuantities(List<ReserveInventoryItemRequest> items) {
+        Map<Long, Integer> quantityByProductId = new HashMap<>();
+        for (ReserveInventoryItemRequest item : items) {
+            quantityByProductId.merge(item.productId(), item.quantity(), Integer::sum);
+        }
+        return quantityByProductId;
     }
 
     private void ensureLowStockAlert(Product product, StockLevel stockLevel, Instant now) {

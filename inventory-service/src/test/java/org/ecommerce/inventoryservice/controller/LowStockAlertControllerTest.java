@@ -39,7 +39,9 @@ class LowStockAlertControllerTest {
 
 	@BeforeEach
 	void setUp() {
-		mockMvc = MockMvcBuilders.standaloneSetup(lowStockAlertController).build();
+		mockMvc = MockMvcBuilders.standaloneSetup(lowStockAlertController)
+				.setControllerAdvice(new ApiExceptionHandler())
+				.build();
 		new ObjectMapper().findAndRegisterModules();
 	}
 
@@ -64,8 +66,9 @@ class LowStockAlertControllerTest {
 						.param("includeResolved", "true")
 						.accept(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[0].id").value(1L))
-				.andExpect(jsonPath("$[0].productSku").value("SKU-10"));
+				.andExpect(jsonPath("$.statusCode").value(200))
+				.andExpect(jsonPath("$.data[0].id").value(1L))
+				.andExpect(jsonPath("$.data[0].productSku").value("SKU-10"));
 
 		verify(stockService).listLowStockAlerts(eq(true));
 	}
@@ -75,7 +78,8 @@ class LowStockAlertControllerTest {
 		when(stockService.resolveLowStockAlert(7L)).thenThrow(new ResponseStatusException(NOT_FOUND, "Low stock alert not found"));
 
 		mockMvc.perform(patch("/v1/inventory/alerts/low-stock/{alertId}/resolve", 7L))
-				.andExpect(status().isNotFound());
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.errorCode").value(404));
 
 		verify(stockService).resolveLowStockAlert(7L);
 	}

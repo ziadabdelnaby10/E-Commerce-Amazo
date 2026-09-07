@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -51,12 +52,16 @@ class CustomerControllerTest {
     @Test
     void createCustomer_shouldReturnCreatedId() throws Exception {
         CustomerRequest request = TestDataFactory.request();
-        given(customerService.createCustomer(any(CustomerRequest.class))).willReturn("cust-1");
+        given(customerService.createCustomer(any(CustomerRequest.class)))
+                .willReturn(UUID.fromString("11111111-1111-1111-1111-111111111111"));
 
         mockMvc.perform(post("/v1/customers")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.statusCode").value(201))
+                .andExpect(jsonPath("$.time").isString())
+                .andExpect(jsonPath("$.data").value("11111111-1111-1111-1111-111111111111"));
     }
 
     @Test
@@ -65,7 +70,8 @@ class CustomerControllerTest {
                 {
                   "firstName": null,
                   "lastName": "Hassan",
-                  "email": "bad-email"
+                  "email": "bad-email",
+                  "password": ""
                 }
                 """;
 
@@ -73,30 +79,37 @@ class CustomerControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidPayload))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.firstName").value("First name is required"))
-                .andExpect(jsonPath("$.errors.email").value("Email should be valid"));
+                .andExpect(jsonPath("$.errorCode").value(400))
+                .andExpect(jsonPath("$.time").isString())
+                .andExpect(jsonPath("$.errorDescription").value(org.hamcrest.Matchers.containsString("firstName: First name is required")))
+                .andExpect(jsonPath("$.errorDescription").value(org.hamcrest.Matchers.containsString("email: Email should be valid")))
+                .andExpect(jsonPath("$.errorDescription").value(org.hamcrest.Matchers.containsString("password: Password is required")));
     }
 
     @Test
     void updateCustomer_shouldReturnOk() throws Exception {
         CustomerRequest request = TestDataFactory.request();
 
-        mockMvc.perform(put("/v1/customers/{customerId}", "cust-1")
+        mockMvc.perform(put("/v1/customers/{customerId}", "11111111-1111-1111-1111-111111111111")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statusCode").value(200))
+                .andExpect(jsonPath("$.data").value(org.hamcrest.Matchers.nullValue()));
     }
 
     @Test
     void updateCustomer_shouldReturnNotFoundWhenServiceThrows() throws Exception {
         CustomerRequest request = TestDataFactory.request();
-        willThrow(new CustomerNotFoundException("Customer not found with id: missing"))
-                .given(customerService).updateCustomer(eq("missing"), any(CustomerRequest.class));
+        UUID missingId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        willThrow(new CustomerNotFoundException("Customer not found with id: " + missingId))
+                .given(customerService).updateCustomer(eq(missingId), any(CustomerRequest.class));
 
-        mockMvc.perform(put("/v1/customers/{customerId}", "missing")
+        mockMvc.perform(put("/v1/customers/{customerId}", missingId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value(404));
     }
 
     @Test
@@ -106,33 +119,36 @@ class CustomerControllerTest {
 
         mockMvc.perform(get("/v1/customers"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].id").value("cust-1"))
-                .andExpect(jsonPath("$.content[0].firstName").value("Ziad"));
+                .andExpect(jsonPath("$.statusCode").value(200))
+                .andExpect(jsonPath("$.data.content[0].id").value("11111111-1111-1111-1111-111111111111"))
+                .andExpect(jsonPath("$.data.content[0].firstName").value("Ziad"));
     }
 
     @Test
     void existsById_shouldReturnBoolean() throws Exception {
-        given(customerService.existsById("cust-1")).willReturn(true);
+        given(customerService.existsById(UUID.fromString("11111111-1111-1111-1111-111111111111"))).willReturn(true);
 
-        mockMvc.perform(get("/v1/customers/exists/{customerId}", "cust-1"))
+        mockMvc.perform(get("/v1/customers/exists/{customerId}", "11111111-1111-1111-1111-111111111111"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").value(true));
+                .andExpect(jsonPath("$.statusCode").value(200))
+                .andExpect(jsonPath("$.data").value(true));
     }
 
     @Test
     void findById_shouldReturnCustomer() throws Exception {
         CustomerResponse response = TestDataFactory.response();
-        given(customerService.findById("cust-1")).willReturn(response);
+        given(customerService.findById(UUID.fromString("11111111-1111-1111-1111-111111111111"))).willReturn(response);
 
-        mockMvc.perform(get("/v1/customers/{customerId}", "cust-1"))
+        mockMvc.perform(get("/v1/customers/{customerId}", "11111111-1111-1111-1111-111111111111"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value("cust-1"))
-                .andExpect(jsonPath("$.email").value("ziad@example.com"));
+                .andExpect(jsonPath("$.statusCode").value(200))
+                .andExpect(jsonPath("$.data.id").value("11111111-1111-1111-1111-111111111111"))
+                .andExpect(jsonPath("$.data.email").value("ziad@example.com"));
     }
 
     @Test
     void delete_shouldReturnNoContent() throws Exception {
-        mockMvc.perform(delete("/v1/customers/{customerId}", "cust-1"))
+        mockMvc.perform(delete("/v1/customers/{customerId}", "11111111-1111-1111-1111-111111111111"))
                 .andExpect(status().isNoContent());
     }
 }

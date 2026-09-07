@@ -3,6 +3,7 @@ package org.ecommerce.paymentservice.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.ecommerce.paymentservice.domain.dto.request.InitiatePaymentRequest;
+import org.ecommerce.paymentservice.domain.dto.response.GeneralResponse;
 import org.ecommerce.paymentservice.domain.dto.response.InitiatePaymentResponse;
 import org.ecommerce.paymentservice.domain.dto.response.PaymentResponse;
 import org.ecommerce.paymentservice.domain.dto.response.PaymentSummaryResponse;
@@ -30,24 +31,25 @@ public class PaymentController {
     private final PaymentService paymentService;
 
     @PostMapping
-    public ResponseEntity<InitiatePaymentResponse> initiate(@Valid @RequestBody InitiatePaymentRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(paymentService.initiatePayment(request));
+    public ResponseEntity<GeneralResponse<InitiatePaymentResponse>> initiate(@Valid @RequestBody InitiatePaymentRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(GeneralResponse.of(HttpStatus.CREATED.value(), paymentService.initiatePayment(request)));
     }
 
     @GetMapping("/{paymentId}")
-    public ResponseEntity<PaymentResponse> getByPaymentId(@PathVariable String paymentId) {
-        return ResponseEntity.ok(paymentService.getByPaymentId(paymentId));
+    public ResponseEntity<GeneralResponse<PaymentResponse>> getByPaymentId(@PathVariable String paymentId) {
+        return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), paymentService.getByPaymentId(paymentId)));
     }
 
     @GetMapping
-    public ResponseEntity<Page<PaymentSummaryResponse>> listByUser(
+    public ResponseEntity<GeneralResponse<Page<PaymentSummaryResponse>>> listByUser(
             @RequestParam String userId,
             @RequestParam(required = false) PaymentStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
         Page<PaymentSummaryResponse> response = paymentService.listByUser(userId, status, PageRequest.of(page, size));
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), response));
     }
 }
 

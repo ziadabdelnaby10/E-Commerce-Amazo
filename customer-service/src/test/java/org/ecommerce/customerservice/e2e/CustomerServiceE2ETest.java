@@ -14,16 +14,16 @@ import org.springframework.http.HttpStatus;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -38,21 +38,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Testcontainers(disabledWithoutDocker = true)
 class CustomerServiceE2ETest {
 
-    private static final int MONGO_PORT = 27017;
-
     @Container
-    static GenericContainer<?> mongoContainer = new GenericContainer<>(DockerImageName.parse("mongo:7.0.3"))
-            .withExposedPorts(MONGO_PORT);
+    static PostgreSQLContainer<?> postgresContainer = new PostgreSQLContainer<>("postgres:17-alpine")
+            .withDatabaseName("customer_test")
+            .withUsername("postgres")
+            .withPassword("rootroot");
 
     @DynamicPropertySource
-    static void mongoProperties(DynamicPropertyRegistry registry) {
-        // Support both key namespaces so tests remain stable across Boot property model changes.
-        registry.add("spring.mongodb.uri", CustomerServiceE2ETest::mongoUri);
-        registry.add("spring.data.mongodb.uri", CustomerServiceE2ETest::mongoUri);
-    }
-
-    private static String mongoUri() {
-        return "mongodb://" + mongoContainer.getHost() + ":" + mongoContainer.getMappedPort(MONGO_PORT) + "/customer-test";
+    static void postgresProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", postgresContainer::getJdbcUrl);
+        registry.add("spring.datasource.username", postgresContainer::getUsername);
+        registry.add("spring.datasource.password", postgresContainer::getPassword);
+        registry.add("spring.flyway.enabled", () -> "true");
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
     }
 
     @LocalServerPort
@@ -81,12 +79,15 @@ class CustomerServiceE2ETest {
         assertThat(createResponse.statusCode()).isEqualTo(HttpStatus.CREATED.value());
         assertThat(createResponse.body()).isNotBlank();
 
-        HttpResponse<String> getResponse = sendRequest("GET", baseUrl + "/" + createResponse.body(), null);
+        Map<String, Object> createBody = readJson(createResponse.body());
+        UUID customerId = UUID.fromString((String) createBody.get("data"));
+        HttpResponse<String> getResponse = sendRequest("GET", baseUrl + "/" + customerId, null);
 
         assertThat(getResponse.statusCode()).isEqualTo(HttpStatus.OK.value());
         Map<String, Object> body = readJson(getResponse.body());
-        assertThat(body.get("firstName")).isEqualTo("Ziad");
-        assertThat(body.get("email")).isEqualTo("ziad@example.com");
+        Map<String, Object> data = (Map<String, Object>) body.get("data");
+        assertThat(data.get("firstName")).isEqualTo("Ziad");
+        assertThat(data.get("email")).isEqualTo("ziad@example.com");
     }
 
     @Test
@@ -96,13 +97,16 @@ class CustomerServiceE2ETest {
         HttpResponse<String> listResponse = sendRequest("GET", baseUrl, null);
 
         assertThat(listResponse.statusCode()).isEqualTo(HttpStatus.OK.value());
+        Map<String, Object> listBody = readJson(listResponse.body());
+        assertThat(listBody).containsKeys("statusCode", "time", "data");
         assertThat(listResponse.body()).contains("Ziad").contains("ziad@example.com");
     }
 
     @Test
-    void shouldPreserveAddressWhenUpdateRequestHasNullAddress() {
-        String customerId = sendJsonRequest("POST", baseUrl, TestDataFactory.request()).body();
-        CustomerRequest updateRequest = new CustomerRequest("Updated", "User", "updated@example.com", null);
+    void shouldUpdateUserProfile() {
+        Map<String, Object> createBody = readJson(sendJsonRequest("POST", baseUrl, TestDataFactory.request()).body());
+        UUID customerId = UUID.fromString((String) createBody.get("data"));
+        CustomerRequest updateRequest = new CustomerRequest("Updated", "User", "updated@example.com", "+201111111111", "NewPassword123");
 
         HttpResponse<String> updateResponse = sendJsonRequest("PUT", baseUrl + "/" + customerId, updateRequest);
 
@@ -112,38 +116,44 @@ class CustomerServiceE2ETest {
         assertThat(savedCustomer.getFirstName()).isEqualTo("Updated");
         assertThat(savedCustomer.getLastName()).isEqualTo("User");
         assertThat(savedCustomer.getEmail()).isEqualTo("updated@example.com");
-        assertThat(savedCustomer.getAddress()).usingRecursiveComparison().isEqualTo(TestDataFactory.address());
+        assertThat(savedCustomer.getPhoneNumber()).isEqualTo("+201111111111");
     }
 
     @Test
     void shouldReturnBadRequestForInvalidPayload() {
         Map<String, Object> invalidRequest = Map.of(
                 "lastName", "Hassan",
-                "email", "invalid-email"
+                "email", "invalid-email",
+                "password", ""
         );
 
         HttpResponse<String> response = sendJsonRequest("POST", baseUrl, invalidRequest);
 
         assertThat(response.statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-        assertThat(response.body()).contains("firstName").contains("Email should be valid");
+        Map<String, Object> errorBody = readJson(response.body());
+        assertThat(errorBody.get("errorCode")).isEqualTo(400);
+        assertThat((String) errorBody.get("errorDescription")).contains("firstName").contains("Email should be valid");
     }
 
     @Test
-    void shouldReturnNotFoundForUnknownCustomer() {
+    void shouldReturnBadRequestForInvalidUuid() {
         HttpResponse<String> response = sendRequest("GET", baseUrl + "/missing", null);
 
-        assertThat(response.statusCode()).isEqualTo(HttpStatus.NOT_FOUND.value());
-        assertThat(response.body()).contains("Customer not found with id: missing");
+        assertThat(response.statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        Map<String, Object> errorBody = readJson(response.body());
+        assertThat(errorBody.get("errorCode")).isEqualTo(400);
+        assertThat(errorBody.get("errorDescription")).isEqualTo("Invalid customer id format");
     }
 
     @Test
     void shouldDeleteCustomer() {
-        String customerId = sendJsonRequest("POST", baseUrl, TestDataFactory.request()).body();
+        Map<String, Object> createBody = readJson(sendJsonRequest("POST", baseUrl, TestDataFactory.request()).body());
+        UUID customerId = UUID.fromString((String) createBody.get("data"));
 
         HttpResponse<String> deleteResponse = sendRequest("DELETE", baseUrl + "/" + customerId, null);
 
         assertThat(deleteResponse.statusCode()).isEqualTo(HttpStatus.NO_CONTENT.value());
-        assertThat(customerRepository.existsById(customerId)).isFalse();
+        assertThat(customerRepository.findById(customerId).orElseThrow().getDeletedAt()).isNotNull();
     }
 
     private HttpResponse<String> sendJsonRequest(String method, String url, Object body) {

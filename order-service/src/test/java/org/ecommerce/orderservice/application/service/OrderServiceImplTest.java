@@ -93,6 +93,7 @@ class OrderServiceImplTest {
         existing.setIdempotencyKey("k1");
         existing.setResponseBody(objectMapper.valueToTree(cached));
 
+        when(dependencyGateway.checkCustomerExist("6a5e87573c810cff28852bfc")).thenReturn(true);
         when(idempotencyRepository.findByIdempotencyKey("k1")).thenReturn(Optional.of(existing));
 
         OrderResponse result = service.createOrder("6a5e87573c810cff28852bfc", "k1", sampleRequest());
@@ -103,6 +104,7 @@ class OrderServiceImplTest {
 
     @Test
     void createOrderPersistsOrderStatusHistoryAndOutboxEvent() {
+        when(dependencyGateway.checkCustomerExist("6a5e87573c810cff28852bfc")).thenReturn(true);
         when(idempotencyRepository.findByIdempotencyKey("k2")).thenReturn(Optional.empty());
         when(idempotencyRepository.save(any(IdempotencyKey.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -147,6 +149,7 @@ class OrderServiceImplTest {
         assertThat(result.totalAmount()).isEqualByComparingTo("50.00");
         verify(statusHistoryRepository, times(1)).save(any());
         verify(orderEventRepository, times(1)).save(any());
+        verify(dependencyGateway, times(1)).reserveInventory(any(Order.class));
     }
 
     private CreateOrderRequest sampleRequest() {

@@ -9,7 +9,6 @@ import org.ecommerce.orderservice.domain.dto.response.OrderResponse;
 import org.ecommerce.orderservice.domain.dto.response.OrderSummaryResponse;
 import org.ecommerce.orderservice.exception.IdempotencyKeyInProgressException;
 import org.ecommerce.orderservice.exception.OrderNotFoundException;
-import org.ecommerce.orderservice.infrastructure.client.dto.CustomerResponse;
 import org.ecommerce.orderservice.service.OrderService;
 import org.ecommerce.orderservice.infrastructure.client.OrderDependencyGateway;
 import org.ecommerce.orderservice.infrastructure.client.dto.InitiatePaymentResponse;
@@ -95,16 +94,16 @@ public class OrderServiceImpl implements OrderService {
 
         orderEventRepository.save(buildOrderEvent(saved, "OrderCreated", false));
 
-//        ReserveInventoryResponse reservation = dependencyGateway.reserveInventory(saved);
-//        if (!reservation.reserved()) {
-//            applyCancellation(saved, "inventory-service", reservation.reason() == null ? "Inventory reservation failed" : reservation.reason());
-//        } else {
-//            InitiatePaymentResponse payment = dependencyGateway.initiatePayment(saved);
-//            if (!payment.accepted()) {
-//                dependencyGateway.releaseInventory(saved);
-//                applyCancellation(saved, "payment-service", payment.reason() == null ? "Payment initiation failed" : payment.reason());
-//            }
-//        }
+        ReserveInventoryResponse reservation = dependencyGateway.reserveInventory(saved);
+        if (!reservation.reserved()) {
+            applyCancellation(saved, "inventory-service", reservation.reason() == null ? "Inventory reservation failed" : reservation.reason());
+        } else {
+            InitiatePaymentResponse payment = dependencyGateway.initiatePayment(saved);
+            if (!payment.accepted()) {
+                dependencyGateway.releaseInventory(saved);
+                applyCancellation(saved, "payment-service", payment.reason() == null ? "Payment initiation failed" : payment.reason());
+            }
+        }
 
         OrderResponse response = orderMapper.toResponse(saved);
         keyRecord.setResponseBody(objectMapper.valueToTree(response));

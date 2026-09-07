@@ -3,8 +3,11 @@ package org.ecommerce.inventoryservice.service;
 import org.ecommerce.inventoryservice.model.entity.Product;
 import org.ecommerce.inventoryservice.model.entity.StockLevel;
 import org.ecommerce.inventoryservice.model.request.ProductRequest;
+import org.ecommerce.inventoryservice.model.request.ReleaseInventoryRequest;
+import org.ecommerce.inventoryservice.model.request.ReserveInventoryRequest;
 import org.ecommerce.inventoryservice.model.request.StockAdjustmentRequest;
 import org.ecommerce.inventoryservice.model.response.LowStockAlertResponse;
+import org.ecommerce.inventoryservice.model.response.ReserveInventoryResponse;
 import org.ecommerce.inventoryservice.model.response.SimpleStockLevelResponse;
 import org.ecommerce.inventoryservice.model.response.StockLevelResponse;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +28,10 @@ public interface StockService {
     StockLevelResponse getStockLevel(Long productId);
 
     StockLevelResponse adjustStock(Long productId, StockAdjustmentRequest request);
+
+    ReserveInventoryResponse reserveInventory(ReserveInventoryRequest request);
+
+    void releaseInventory(ReleaseInventoryRequest request);
 
     StockLevel findStockLevelByProductId(Long productId);
 

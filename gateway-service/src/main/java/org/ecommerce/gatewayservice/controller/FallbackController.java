@@ -1,5 +1,6 @@
 package org.ecommerce.gatewayservice.controller;
 
+import org.ecommerce.gatewayservice.response.GeneralResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,21 +12,21 @@ import org.springframework.web.bind.annotation.RestController;
 public class FallbackController {
 
     @GetMapping("/customers")
-    public ResponseEntity<String> customersFallback() {
+    public ResponseEntity<GeneralResponse<String>> customersFallback() {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body("Customer Service is temporarily unavailable");
+                .body(GeneralResponse.of(HttpStatus.SERVICE_UNAVAILABLE.value(), "Customer Service is temporarily unavailable"));
     }
 
     @GetMapping("/inventory")
-    public ResponseEntity<String> inventoryFallback() {
+    public ResponseEntity<GeneralResponse<String>> inventoryFallback() {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body("Inventory Service is temporarily unavailable");
+                .body(GeneralResponse.of(HttpStatus.SERVICE_UNAVAILABLE.value(), "Inventory Service is temporarily unavailable"));
     }
 
     @GetMapping("/orders")
-    public ResponseEntity<String> ordersFallback() {
+    public ResponseEntity<GeneralResponse<String>> ordersFallback() {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body("Order Service is temporarily unavailable");
+                .body(GeneralResponse.of(HttpStatus.SERVICE_UNAVAILABLE.value(), "Order Service is temporarily unavailable"));
     }
 }
 

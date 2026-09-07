@@ -3,8 +3,12 @@ package org.ecommerce.inventoryservice.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.ecommerce.inventoryservice.model.entity.ProductStatus;
 import org.ecommerce.inventoryservice.model.request.ProductRequest;
+import org.ecommerce.inventoryservice.model.request.ReleaseInventoryRequest;
+import org.ecommerce.inventoryservice.model.request.ReserveInventoryItemRequest;
+import org.ecommerce.inventoryservice.model.request.ReserveInventoryRequest;
 import org.ecommerce.inventoryservice.model.response.InventoryTransactionResponse;
 import org.ecommerce.inventoryservice.model.response.ProductResponse;
+import org.ecommerce.inventoryservice.model.response.ReserveInventoryResponse;
 import org.ecommerce.inventoryservice.model.response.SimpleStockLevelResponse;
 import org.ecommerce.inventoryservice.service.InventoryService;
 import org.ecommerce.inventoryservice.service.ProductService;
@@ -50,6 +54,7 @@ class InventoryControllerTest {
         stockService = mock(StockService.class);
         mockMvc = MockMvcBuilders.standaloneSetup(new InventoryController(inventoryService, productService, stockService))
                 .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
+                .setControllerAdvice(new ApiExceptionHandler())
                 .build();
         objectMapper = new ObjectMapper().findAndRegisterModules();
     }
@@ -72,22 +77,24 @@ class InventoryControllerTest {
         ProductResponse response = productResponse();
         given(productService.createProduct(any(ProductRequest.class))).willReturn(response);
 
-        mockMvc.perform(post("/v1/inventory")
+        mockMvc.perform(post("/v1/inventory/product")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(1L))
-                .andExpect(jsonPath("$.stockLevel.quantityAvailable").value(5));
+                .andExpect(jsonPath("$.statusCode").value(201))
+                .andExpect(jsonPath("$.data.id").value(1L))
+                .andExpect(jsonPath("$.data.stockLevel.quantityAvailable").value(5));
     }
 
     @Test
     void list_shouldReturnProductsFilteredByStatus() throws Exception {
         given(productService.listProducts(ProductStatus.ACTIVE)).willReturn(List.of(productResponse()));
 
-        mockMvc.perform(get("/v1/inventory").param("status", "ACTIVE"))
+        mockMvc.perform(get("/v1/inventory/product").param("status", "ACTIVE"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].sku").value("SKU-1"))
-                .andExpect(jsonPath("$[0].status").value("ACTIVE"));
+                .andExpect(jsonPath("$.statusCode").value(200))
+                .andExpect(jsonPath("$.data[0].sku").value("SKU-1"))
+                .andExpect(jsonPath("$.data[0].status").value("ACTIVE"));
 
         org.mockito.Mockito.verify(productService).listProducts(eq(ProductStatus.ACTIVE));
     }
@@ -104,7 +111,8 @@ class InventoryControllerTest {
         mockMvc.perform(post("/v1/inventory/{productId}/stock/adjust", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidPayload))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value(400));
     }
 
     @Test
@@ -126,8 +134,39 @@ class InventoryControllerTest {
 
         mockMvc.perform(get("/v1/inventory/{productId}/transactions", 1L))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].id").value(10L))
-                .andExpect(jsonPath("$.content[0].transactionType").value("SALE"));
+                .andExpect(jsonPath("$.statusCode").value(200))
+                .andExpect(jsonPath("$.data.content[0].id").value(10L))
+                .andExpect(jsonPath("$.data.content[0].transactionType").value("SALE"));
+    }
+
+    @Test
+    void reserveInventory_shouldReturnReservationResponse() throws Exception {
+        ReserveInventoryRequest request = new ReserveInventoryRequest(
+                101L,
+                List.of(new ReserveInventoryItemRequest(1L, 2))
+        );
+        given(stockService.reserveInventory(any(ReserveInventoryRequest.class)))
+                .willReturn(ReserveInventoryResponse.success());
+
+        mockMvc.perform(post("/v1/inventory/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statusCode").value(200))
+                .andExpect(jsonPath("$.data.reserved").value(true));
+    }
+
+    @Test
+    void releaseInventory_shouldReturnNoContent() throws Exception {
+        ReleaseInventoryRequest request = new ReleaseInventoryRequest(
+                101L,
+                List.of(new ReserveInventoryItemRequest(1L, 2))
+        );
+
+        mockMvc.perform(post("/v1/inventory/reservations/release")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNoContent());
     }
 
     private ProductResponse productResponse() {

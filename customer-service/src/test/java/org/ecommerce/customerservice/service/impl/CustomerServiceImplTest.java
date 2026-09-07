@@ -2,9 +2,12 @@ package org.ecommerce.customerservice.service.impl;
 
 import org.ecommerce.customerservice.TestDataFactory;
 import org.ecommerce.customerservice.entity.Customer;
+import org.ecommerce.customerservice.entity.Role;
 import org.ecommerce.customerservice.exception.CustomerNotFoundException;
+import org.ecommerce.customerservice.exception.DuplicateEmailException;
 import org.ecommerce.customerservice.mapper.CustomerMapper;
 import org.ecommerce.customerservice.repository.CustomerRepository;
+import org.ecommerce.customerservice.repository.RoleRepository;
 import org.ecommerce.customerservice.request.CustomerRequest;
 import org.ecommerce.customerservice.response.CustomerResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,11 +16,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -36,6 +41,12 @@ class CustomerServiceImplTest {
     @Mock
     private CustomerMapper customerMapper;
 
+    @Mock
+    private RoleRepository roleRepository;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
+
     @InjectMocks
     private CustomerServiceImpl customerService;
 
@@ -52,34 +63,53 @@ class CustomerServiceImplTest {
 
     @Test
     void createCustomer_shouldSaveMappedEntityAndReturnId() {
+        when(customerRepository.existsByEmailIgnoreCase(request.email())).thenReturn(false);
         when(customerMapper.toCustomer(request)).thenReturn(customer);
+        when(passwordEncoder.encode(request.password())).thenReturn("$2a$10$encoded");
+        when(roleRepository.findByName("ROLE_USER")).thenReturn(Optional.of(Role.builder().id(1L).name("ROLE_USER").build()));
         when(customerRepository.save(customer)).thenReturn(customer);
 
-        String result = customerService.createCustomer(request);
+        UUID result = customerService.createCustomer(request);
 
-        assertThat(result).isEqualTo("cust-1");
+        assertThat(result).isEqualTo(customer.getId());
+        assertThat(customer.getPasswordHash()).isEqualTo("$2a$10$encoded");
         verify(customerMapper).toCustomer(request);
         verify(customerRepository).save(customer);
     }
 
     @Test
-    void updateCustomer_shouldApplyPartialUpdateAndSaveExistingEntity() {
-        when(customerRepository.findById("cust-1")).thenReturn(Optional.of(customer));
-        doNothing().when(customerMapper).partialUpdate(request, customer);
+    void createCustomer_shouldThrowWhenEmailAlreadyExists() {
+        when(customerRepository.existsByEmailIgnoreCase(request.email())).thenReturn(true);
 
-        customerService.updateCustomer("cust-1", request);
+        assertThatThrownBy(() -> customerService.createCustomer(request))
+                .isInstanceOf(DuplicateEmailException.class)
+                .hasMessage("Email already exists: " + request.email());
+
+        verify(customerMapper, never()).toCustomer(any());
+    }
+
+    @Test
+    void updateCustomer_shouldApplyPartialUpdateAndSaveExistingEntity() {
+        UUID customerId = customer.getId();
+        when(customerRepository.findByIdAndDeletedAtIsNull(customerId)).thenReturn(Optional.of(customer));
+        doNothing().when(customerMapper).partialUpdate(request, customer);
+        when(passwordEncoder.encode(request.password())).thenReturn("$2a$10$new");
+
+        customerService.updateCustomer(customerId, request);
 
         verify(customerMapper).partialUpdate(request, customer);
+        assertThat(customer.getPasswordHash()).isEqualTo("$2a$10$new");
         verify(customerRepository).save(customer);
     }
 
     @Test
     void updateCustomer_shouldThrowWhenCustomerDoesNotExist() {
-        when(customerRepository.findById("missing")).thenReturn(Optional.empty());
+        UUID missingId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        when(customerRepository.findByIdAndDeletedAtIsNull(missingId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> customerService.updateCustomer("missing", request))
+        assertThatThrownBy(() -> customerService.updateCustomer(missingId, request))
                 .isInstanceOf(CustomerNotFoundException.class)
-                .hasMessage("Customer not found with id: missing");
+                .hasMessage("Customer not found with id: " + missingId);
 
         verify(customerMapper, never()).partialUpdate(any(), any());
     }
@@ -87,7 +117,7 @@ class CustomerServiceImplTest {
     @Test
     void findAllCustomers_shouldMapAllCustomersInPage() {
         var pageable = PageRequest.of(0, 10);
-        when(customerRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(customer), pageable, 1));
+        when(customerRepository.findByDeletedAtIsNull(pageable)).thenReturn(new PageImpl<>(List.of(customer), pageable, 1));
         when(customerMapper.toCustomerResponse(customer)).thenReturn(response);
 
         var result = customerService.findAllCustomers(pageable);
@@ -97,35 +127,42 @@ class CustomerServiceImplTest {
 
     @Test
     void existsById_shouldReturnRepositoryResult() {
-        when(customerRepository.existsById("cust-1")).thenReturn(true);
+        UUID customerId = customer.getId();
+        when(customerRepository.existsByIdAndDeletedAtIsNull(customerId)).thenReturn(true);
 
-        assertThat(customerService.existsById("cust-1")).isTrue();
+        assertThat(customerService.existsById(customerId)).isTrue();
     }
 
     @Test
     void findById_shouldReturnMappedResponse() {
-        when(customerRepository.findById("cust-1")).thenReturn(Optional.of(customer));
+        UUID customerId = customer.getId();
+        when(customerRepository.findByIdAndDeletedAtIsNull(customerId)).thenReturn(Optional.of(customer));
         when(customerMapper.toCustomerResponse(customer)).thenReturn(response);
 
-        CustomerResponse result = customerService.findById("cust-1");
+        CustomerResponse result = customerService.findById(customerId);
 
         assertThat(result).isEqualTo(response);
     }
 
     @Test
     void findById_shouldThrowWhenCustomerDoesNotExist() {
-        when(customerRepository.findById("missing")).thenReturn(Optional.empty());
+        UUID missingId = UUID.fromString("33333333-3333-3333-3333-333333333333");
+        when(customerRepository.findByIdAndDeletedAtIsNull(missingId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> customerService.findById("missing"))
+        assertThatThrownBy(() -> customerService.findById(missingId))
                 .isInstanceOf(CustomerNotFoundException.class)
-                .hasMessage("Customer not found with id: missing");
+                .hasMessage("Customer not found with id: " + missingId);
     }
 
     @Test
-    void deleteCustomer_shouldDelegateToRepository() {
-        customerService.deleteCustomer("cust-1");
+    void deleteCustomer_shouldMarkDeletedAt() {
+        UUID customerId = customer.getId();
+        when(customerRepository.findByIdAndDeletedAtIsNull(customerId)).thenReturn(Optional.of(customer));
 
-        verify(customerRepository).deleteById("cust-1");
+        customerService.deleteCustomer(customerId);
+
+        assertThat(customer.getDeletedAt()).isNotNull();
+        verify(customerRepository).save(customer);
     }
 }
 

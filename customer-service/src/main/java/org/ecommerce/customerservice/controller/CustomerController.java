@@ -2,9 +2,9 @@ package org.ecommerce.customerservice.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.ecommerce.customerservice.entity.Customer;
 import org.ecommerce.customerservice.request.CustomerRequest;
 import org.ecommerce.customerservice.response.CustomerResponse;
+import org.ecommerce.customerservice.response.GeneralResponse;
 import org.ecommerce.customerservice.service.CustomerService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,7 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("v1/customers")
@@ -24,47 +24,45 @@ public class CustomerController {
     private final CustomerService service;
 
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public ResponseEntity<String> createCustomer(@RequestBody @Valid CustomerRequest request) {
+    public ResponseEntity<GeneralResponse<String>> createCustomer(@RequestBody @Valid CustomerRequest request) {
         var customerId = service.createCustomer(request);
-        return new ResponseEntity<>(customerId, HttpStatus.CREATED);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(GeneralResponse.of(HttpStatus.CREATED.value(), customerId.toString()));
     }
 
     @PutMapping("/{customerId}")
-    @ResponseStatus(HttpStatus.OK)
-    public ResponseEntity<Void> updateCustomer(@PathVariable String customerId, @RequestBody @Valid CustomerRequest request) {
+    public ResponseEntity<GeneralResponse<Void>> updateCustomer(@PathVariable UUID customerId, @RequestBody @Valid CustomerRequest request) {
         service.updateCustomer(customerId, request);
-        return new ResponseEntity<>(HttpStatus.OK);
+        return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), null));
     }
 
     @GetMapping
-    @ResponseStatus(HttpStatus.OK)
-    public ResponseEntity<Page<CustomerResponse>> findAll(
+    public ResponseEntity<GeneralResponse<Page<CustomerResponse>>> findAll(
             @PageableDefault(size = 20, direction = Sort.Direction.ASC)
             Pageable pageable) {
-        return ResponseEntity.ok(service.findAllCustomers(pageable));
+        return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), service.findAllCustomers(pageable)));
     }
 
     @GetMapping("/exists/{customerId}")
-    public ResponseEntity<Boolean> existsById(
-            @PathVariable String customerId
+    public ResponseEntity<GeneralResponse<Boolean>> existsById(
+            @PathVariable UUID customerId
     ) {
-        return ResponseEntity.ok(service.existsById(customerId));
+        return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), service.existsById(customerId)));
     }
 
     @GetMapping("/{customerId}")
-    public ResponseEntity<CustomerResponse> findById(
-            @PathVariable String customerId
+    public ResponseEntity<GeneralResponse<CustomerResponse>> findById(
+            @PathVariable UUID customerId
     ) {
-        return ResponseEntity.ok(service.findById(customerId));
+        return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), service.findById(customerId)));
     }
 
     @DeleteMapping("/{customerId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public ResponseEntity<Void> delete(
-            @PathVariable String customerId
+    public ResponseEntity<GeneralResponse<Void>> delete(
+            @PathVariable UUID customerId
     ) {
         this.service.deleteCustomer(customerId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.status(HttpStatus.NO_CONTENT)
+                .body(GeneralResponse.of(HttpStatus.NO_CONTENT.value(), null));
     }
 }
