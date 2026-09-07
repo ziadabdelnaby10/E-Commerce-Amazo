@@ -299,18 +299,33 @@ Target metrics for your learning:
 
 ## 🤖 CI Workflow (GitHub Actions)
 
-- Matrix scope is limited to currently scaffolded Maven services:
-  - `config-service`
-  - `customer-service`
-  - `discovery-service`
-  - `gateway-service`
-- Pull requests run fast checks with `mvn test` per changed service.
-- Pushes to `main` run stricter checks with `mvn verify` per changed service.
-- Shared changes (for example `.github/`, `docs/`, `docker-compose.yml`, `README.md`) trigger full matrix runs.
+See `docs/GITHUB_ACTIONS_SETUP.md` for setup details, required secrets, and image tags.
+
+- Workflows:
+  - `.github/workflows/unit-tests-pr.yml`: PR-only fast unit tests (`mvnw clean test`) for changed services.
+  - `.github/workflows/verify-main.yml`: stricter `mvnw clean verify` for all services on pushes to `main`.
+  - `.github/workflows/docker-publish.yml`: Docker Hub image publish on `main` and `v*` tags.
+- Matrix scope includes all current Maven services:
+  - `config-service`, `customer-service`, `discovery-service`, `gateway-service`
+  - `inventory-service`, `notification-service`, `order-service`, `payment-service`
+- Shared changes (for example `.github/`, `docs/`, `docker-compose.yml`, `README.md`) trigger full PR unit-test matrix.
+
+### Docker Hub Setup
+
+Required repository secrets:
+
+1. `DOCKERHUB_USERNAME`
+2. `DOCKERHUB_TOKEN` (Docker Hub access token)
+
+Image and tag format:
+
+- Repository: `ziadabdelnaby/amazo-ecommerce`
+- On `main`: `[service]-latest` and `[service]-sha-<shortSha>`
+- On tags (for example `v1.0.0`): `[service]-v1.0.0` and `[service]-sha-<shortSha>`
 
 ### Expanding the Matrix
 
-Add a new service to `.github/workflows/ci-matrix.yml` only after all are true:
+Add a new service to workflow matrices only after all are true:
 
 1. The service has its own `pom.xml`.
 2. The service has `mvnw` and `mvnw.cmd` in its folder.

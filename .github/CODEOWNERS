@@ -1,9 +1,16 @@
-# Replace @your-github-username with your actual GitHub handle.
-* @your-github-username
+# Repository ownership
+* @ziadabdelnaby10
 
-/.github/ @your-github-username
-/config-service/ @your-github-username
-/customer-service/ @your-github-username
-/discovery-service/ @your-github-username
-/gateway-service/ @your-github-username
+/.github/ @ziadabdelnaby10
+/docs/ @ziadabdelnaby10
+/docker-compose.yml @ziadabdelnaby10
+/ports.txt @ziadabdelnaby10
 
+/config-service/ @ziadabdelnaby10
+/customer-service/ @ziadabdelnaby10
+/discovery-service/ @ziadabdelnaby10
+/gateway-service/ @ziadabdelnaby10
+/inventory-service/ @ziadabdelnaby10
+/notification-service/ @ziadabdelnaby10
+/order-service/ @ziadabdelnaby10
+/payment-service/ @ziadabdelnaby10

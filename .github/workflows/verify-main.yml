@@ -1,0 +1,47 @@
+name: Verify Main
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - config-service
+          - customer-service
+          - discovery-service
+          - gateway-service
+          - inventory-service
+          - notification-service
+          - order-service
+          - payment-service
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Make Maven wrapper executable
+        shell: bash
+        run: chmod +x "${{ matrix.service }}/mvnw"
+
+      - name: Verify service
+        working-directory: ${{ matrix.service }}
+        shell: bash
+        run: ./mvnw -B clean verify
+
