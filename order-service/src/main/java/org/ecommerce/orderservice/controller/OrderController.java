@@ -3,6 +3,7 @@ package org.ecommerce.orderservice.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.ecommerce.orderservice.domain.dto.request.CreateOrderRequest;
+import org.ecommerce.orderservice.domain.dto.response.GeneralResponse;
 import org.ecommerce.orderservice.domain.dto.response.OrderResponse;
 import org.ecommerce.orderservice.domain.dto.response.OrderSummaryResponse;
 import org.ecommerce.orderservice.service.OrderService;
@@ -30,29 +31,30 @@ public class OrderController {
     private final OrderService orderService;
 
     @PostMapping
-    public ResponseEntity<OrderResponse> createOrder(
+    public ResponseEntity<GeneralResponse<OrderResponse>> createOrder(
             @RequestHeader("Idempotency-Key") String idempotencyKey,
             @RequestHeader("X-User-Id") String userId,
             @Valid @RequestBody CreateOrderRequest request
     ) {
         OrderResponse response = orderService.createOrder(userId, idempotencyKey, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(GeneralResponse.of(HttpStatus.CREATED.value(), response));
     }
 
     @GetMapping("/{orderId}")
-    public ResponseEntity<OrderResponse> getById(@PathVariable Long orderId) {
-        return ResponseEntity.ok(orderService.getById(orderId));
+    public ResponseEntity<GeneralResponse<OrderResponse>> getById(@PathVariable Long orderId) {
+        return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), orderService.getById(orderId)));
     }
 
     @GetMapping
-    public ResponseEntity<Page<OrderSummaryResponse>> listByUser(
+    public ResponseEntity<GeneralResponse<Page<OrderSummaryResponse>>> listByUser(
             @RequestParam Long userId,
             @RequestParam(required = false) OrderStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
         Page<OrderSummaryResponse> response = orderService.listByUser(userId, status, PageRequest.of(page, size));
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), response));
     }
 }
 

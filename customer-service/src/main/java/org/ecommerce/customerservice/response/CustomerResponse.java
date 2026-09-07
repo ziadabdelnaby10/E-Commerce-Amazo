@@ -1,9 +1,14 @@
 package org.ecommerce.customerservice.response;
 
+import java.util.UUID;
+
 public record CustomerResponse(
-        String id,
+        UUID id,
         String firstName,
         String lastName,
-        String email
+        String email,
+        String phoneNumber,
+        Boolean isActive,
+        Boolean isEmailVerified
 ) {
 }

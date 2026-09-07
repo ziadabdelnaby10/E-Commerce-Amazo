@@ -21,7 +21,7 @@ class CustomerMapperTest {
         assertThat(customer.getFirstName()).isEqualTo(request.firstName());
         assertThat(customer.getLastName()).isEqualTo(request.lastName());
         assertThat(customer.getEmail()).isEqualTo(request.email());
-        assertThat(customer.getAddress()).usingRecursiveComparison().isEqualTo(request.address());
+        assertThat(customer.getPhoneNumber()).isEqualTo(request.phoneNumber());
     }
 
     @Test
@@ -41,9 +41,9 @@ class CustomerMapperTest {
         customerMapper.partialUpdate(partialRequest, customer);
 
         assertThat(customer.getFirstName()).isEqualTo("Updated");
-        assertThat(customer.getLastName()).isEqualTo("Hassan");
-        assertThat(customer.getEmail()).isEqualTo("ziad@example.com");
-        assertThat(customer.getAddress()).usingRecursiveComparison().isEqualTo(TestDataFactory.address());
+        assertThat(customer.getLastName()).isEqualTo("User");
+        assertThat(customer.getEmail()).isEqualTo("updated@example.com");
+        assertThat(customer.getPhoneNumber()).isEqualTo("+201111111111");
     }
 }
 

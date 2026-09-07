@@ -7,8 +7,12 @@ import org.ecommerce.inventoryservice.model.entity.Product;
 import org.ecommerce.inventoryservice.model.entity.ProductStatus;
 import org.ecommerce.inventoryservice.model.entity.StockLevel;
 import org.ecommerce.inventoryservice.model.request.ProductRequest;
+import org.ecommerce.inventoryservice.model.request.ReleaseInventoryRequest;
+import org.ecommerce.inventoryservice.model.request.ReserveInventoryItemRequest;
+import org.ecommerce.inventoryservice.model.request.ReserveInventoryRequest;
 import org.ecommerce.inventoryservice.model.request.StockAdjustmentRequest;
 import org.ecommerce.inventoryservice.model.response.LowStockAlertResponse;
+import org.ecommerce.inventoryservice.model.response.ReserveInventoryResponse;
 import org.ecommerce.inventoryservice.model.response.StockLevelResponse;
 import org.ecommerce.inventoryservice.repository.LowStockAlertRepository;
 import org.ecommerce.inventoryservice.repository.StockLevelRepository;
@@ -160,6 +164,45 @@ class StockServiceImplTest {
         ArgumentCaptor<StockAdjustedEvent> eventCaptor = ArgumentCaptor.forClass(StockAdjustedEvent.class);
         verify(eventPublisher).publishEvent(eventCaptor.capture());
         assertThat(eventCaptor.getValue().targetStatus()).isEqualTo(ProductStatus.ACTIVE);
+    }
+
+    @Test
+    void reserveInventory_shouldFailWhenRequestedQuantityExceedsAvailableStock() {
+        when(stockLevelRepository.findByProductId(1L)).thenReturn(Optional.of(stockLevel));
+
+        ReserveInventoryResponse result = stockService.reserveInventory(new ReserveInventoryRequest(
+                55L,
+                List.of(new ReserveInventoryItemRequest(1L, 3))
+        ));
+
+        assertThat(result.reserved()).isFalse();
+        assertThat(result.reason()).contains("Insufficient available stock");
+        verify(stockLevelRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void reserveAndReleaseInventory_shouldMoveQuantitiesBetweenAvailableAndReserved() {
+        stockLevel.setQuantityAvailable(8);
+        stockLevel.setQuantityReserved(1);
+
+        when(stockLevelRepository.findByProductId(1L)).thenReturn(Optional.of(stockLevel));
+
+        ReserveInventoryResponse reservation = stockService.reserveInventory(new ReserveInventoryRequest(
+                55L,
+                List.of(new ReserveInventoryItemRequest(1L, 3))
+        ));
+
+        assertThat(reservation.reserved()).isTrue();
+        assertThat(stockLevel.getQuantityAvailable()).isEqualTo(5);
+        assertThat(stockLevel.getQuantityReserved()).isEqualTo(4);
+
+        stockService.releaseInventory(new ReleaseInventoryRequest(
+                55L,
+                List.of(new ReserveInventoryItemRequest(1L, 2))
+        ));
+
+        assertThat(stockLevel.getQuantityAvailable()).isEqualTo(7);
+        assertThat(stockLevel.getQuantityReserved()).isEqualTo(2);
     }
 
     @Test

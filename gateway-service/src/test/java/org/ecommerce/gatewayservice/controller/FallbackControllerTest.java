@@ -14,7 +14,10 @@ class FallbackControllerTest {
         var response = fallbackController.customersFallback();
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
-        assertThat(response.getBody()).isEqualTo("Customer Service is temporarily unavailable");
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().statusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE.value());
+        assertThat(response.getBody().data()).isEqualTo("Customer Service is temporarily unavailable");
+        assertThat(response.getBody().time()).isNotNull();
     }
 }
 
