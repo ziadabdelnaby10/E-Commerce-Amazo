@@ -77,18 +77,20 @@ class StockServiceImplTest {
                 new BigDecimal("700.00"),
                 15L,
                 10,
-                50,
                 null,
+                50,
                 "A-01"
         );
         Instant now = Instant.parse("2026-08-07T12:00:00Z");
+        when(stockLevelRepository.save(any(StockLevel.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         StockLevel created = stockService.saveEmptyStockLevel(product, request, now);
 
         assertThat(created.getProduct()).isEqualTo(product);
-        assertThat(created.getQuantityAvailable()).isZero();
+        assertThat(created.getQuantityAvailable()).isEqualTo(50);
         assertThat(created.getQuantityReserved()).isZero();
         assertThat(created.getQuantityDamaged()).isZero();
+        assertThat(created.getTotalQuantity()).isEqualTo(50);
         assertThat(created.getWarehouseLocation()).isEqualTo("A-01");
         assertThat(created.getCreatedAt()).isEqualTo(now);
         assertThat(created.getUpdatedAt()).isEqualTo(now);

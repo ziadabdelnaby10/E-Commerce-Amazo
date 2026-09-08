@@ -59,7 +59,7 @@ class OrderServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        objectMapper = new ObjectMapper();
+        objectMapper = new ObjectMapper().findAndRegisterModules();
         service = new OrderServiceImpl(
                 orderRepository,
                 orderEventRepository,

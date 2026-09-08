@@ -11,7 +11,6 @@ import org.ecommerce.customerservice.request.CustomerRequest;
 import org.ecommerce.customerservice.response.CustomerResponse;
 import org.ecommerce.customerservice.service.CustomerService;
 import org.ecommerce.customerservice.service.PasswordService;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
