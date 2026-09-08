@@ -5,6 +5,7 @@ import org.ecommerce.notificationservice.application.port.out.CustomerContactPor
 import org.ecommerce.notificationservice.application.port.out.EmailSenderPort;
 import org.ecommerce.notificationservice.application.port.out.NotificationEventPublisherPort;
 import org.ecommerce.notificationservice.domain.model.Notification;
+import org.ecommerce.notificationservice.domain.model.NotificationPreference;
 import org.ecommerce.notificationservice.domain.model.NotificationTemplate;
 import org.ecommerce.notificationservice.domain.model.NotificationType;
 import org.ecommerce.notificationservice.infrastructure.mapping.NotificationMapper;
@@ -82,6 +83,7 @@ class NotificationApplicationServiceTest {
     void processInboundEventSendsEmailAndPublishesOutboundEvent() {
         when(eventRepository.existsByEventId("evt-2")).thenReturn(false);
         when(eventRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(preferenceRepository.findByUserId(11L)).thenReturn(Optional.of(enabledPreference(11L)));
         when(customerContactPort.resolveEmailByUserId(11L)).thenReturn(Optional.of("user11@example.com"));
         when(templateRepository.findByNameAndTypeAndActiveTrue("order_confirmation", NotificationType.EMAIL)).thenReturn(Optional.of(template()));
         when(notificationRepository.save(any(Notification.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -97,6 +99,26 @@ class NotificationApplicationServiceTest {
         verify(emailSenderPort, times(1)).send(any());
         verify(eventPublisherPort, times(1)).publish(any(), any(), any());
         verify(notificationRepository, times(1)).save(any(Notification.class));
+    }
+
+    private NotificationPreference enabledPreference(Long userId) {
+        NotificationPreference preference = new NotificationPreference();
+        preference.setUserId(userId);
+        preference.setEmailOnOrderCreated(true);
+        preference.setEmailOnOrderShipped(true);
+        preference.setEmailOnOrderDelivered(true);
+        preference.setEmailOnPaymentSuccess(true);
+        preference.setEmailOnPaymentFailed(true);
+        preference.setEmailOnInventoryAlert(false);
+        preference.setSmsOnOrderShipped(false);
+        preference.setSmsOnPaymentFailed(true);
+        preference.setPushOnOrderUpdate(true);
+        preference.setPushOnPaymentUpdate(true);
+        preference.setUnsubscribedFromMarketing(false);
+        preference.setUnsubscribedFromAll(false);
+        preference.setCreatedAt(Instant.now());
+        preference.setUpdatedAt(Instant.now());
+        return preference;
     }
 
     private NotificationTemplate template() {

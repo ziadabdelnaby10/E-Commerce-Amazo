@@ -10,13 +10,13 @@ import org.ecommerce.customerservice.repository.CustomerRepository;
 import org.ecommerce.customerservice.repository.RoleRepository;
 import org.ecommerce.customerservice.request.CustomerRequest;
 import org.ecommerce.customerservice.response.CustomerResponse;
+import org.ecommerce.customerservice.service.PasswordService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
@@ -45,7 +45,7 @@ class CustomerServiceImplTest {
     private RoleRepository roleRepository;
 
     @Mock
-    private PasswordEncoder passwordEncoder;
+    private PasswordService passwordService;
 
     @InjectMocks
     private CustomerServiceImpl customerService;
@@ -65,7 +65,7 @@ class CustomerServiceImplTest {
     void createCustomer_shouldSaveMappedEntityAndReturnId() {
         when(customerRepository.existsByEmailIgnoreCase(request.email())).thenReturn(false);
         when(customerMapper.toCustomer(request)).thenReturn(customer);
-        when(passwordEncoder.encode(request.password())).thenReturn("$2a$10$encoded");
+        when(passwordService.encrypt(request.password())).thenReturn("$2a$10$encoded");
         when(roleRepository.findByName("ROLE_USER")).thenReturn(Optional.of(Role.builder().id(1L).name("ROLE_USER").build()));
         when(customerRepository.save(customer)).thenReturn(customer);
 
@@ -93,7 +93,7 @@ class CustomerServiceImplTest {
         UUID customerId = customer.getId();
         when(customerRepository.findByIdAndDeletedAtIsNull(customerId)).thenReturn(Optional.of(customer));
         doNothing().when(customerMapper).partialUpdate(request, customer);
-        when(passwordEncoder.encode(request.password())).thenReturn("$2a$10$new");
+        when(passwordService.encrypt(request.password())).thenReturn("$2a$10$new");
 
         customerService.updateCustomer(customerId, request);
 
