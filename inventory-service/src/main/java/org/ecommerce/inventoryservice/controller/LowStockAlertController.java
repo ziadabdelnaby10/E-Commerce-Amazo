@@ -12,6 +12,7 @@ import org.ecommerce.inventoryservice.model.response.LowStockAlertResponse;
 import org.ecommerce.inventoryservice.service.StockService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,6 +28,7 @@ public class LowStockAlertController {
     @Operation(summary = "List low-stock alerts", description = "Returns low-stock alerts ordered by creation date. Use `includeResolved=true` to include already resolved alerts.")
     @ApiResponse(responseCode = "200", description = "Alert list returned")
     @GetMapping
+    @PreAuthorize("hasAuthority('VIEW_INVENTORY')")
     public ResponseEntity<GeneralResponse<List<LowStockAlertResponse>>> listLowStockAlerts(
             @Parameter(description = "When true, resolved alerts are included in the response") @RequestParam(defaultValue = "false") boolean includeResolved) {
         return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), stockService.listLowStockAlerts(includeResolved)));
@@ -38,6 +40,7 @@ public class LowStockAlertController {
             @ApiResponse(responseCode = "404", description = "Alert not found", content = @Content)
     })
     @PatchMapping("/{alertId}/resolve")
+    @PreAuthorize("hasAuthority('MODIFY_INVENTORY')")
     public ResponseEntity<GeneralResponse<LowStockAlertResponse>> resolveLowStockAlert(
             @Parameter(description = "Alert identifier", required = true) @PathVariable Long alertId) {
         return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), stockService.resolveLowStockAlert(alertId)));

@@ -11,3 +11,13 @@ eureka:
   client:
     enabled: false
 
+# Security is enabled in tests as well, so the JWT filter chain and the @PreAuthorize
+# rules are exercised exactly like in production.
+application:
+  security:
+    enabled: true
+    jwt:
+      secret: test-secret-value-that-is-long-enough-for-hmac-sha256!!
+      issuer: ecommerce-platform
+      access-token-ttl: 15m
+      refresh-token-ttl: 30d

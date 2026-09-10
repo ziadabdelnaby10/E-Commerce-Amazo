@@ -7,6 +7,10 @@ spring:
       server:
         webflux:
           routes:
+            - id: customer-auth-service
+              uri: lb://customer-service
+              predicates:
+                - Path=/api/v1/auth,/api/v1/auth/**
             - id: inventory-service
               uri: lb://inventory-service
               predicates:
@@ -29,7 +33,7 @@ spring:
             - id: customer-service
               uri: lb://customer-service
               predicates:
-                - Path=/api/v1/customers/**
+                - Path=/api/v1/customers,/api/v1/customers/**
 #          filters:
 #            - name: CircuitBreaker
 #              args:
@@ -49,6 +53,13 @@ spring:
               uri: lb://notification-service
               predicates:
                 - Path=/api/v1/notifications/**
+
+application:
+  security:
+    enabled: true
+    jwt:
+      secret: I_gu6p0FVNHP_Hhjt0cHXF-eFwYGB8ph1xwUOKaBYljDfsXnHpfYAYgaRC8msRTc
+      issuer: ecommerce-platform
 
 management:
   endpoints:

@@ -30,6 +30,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 
@@ -50,6 +51,7 @@ public class InventoryController {
             @ApiResponse(responseCode = "409", description = "SKU already exists", content = @Content)
     })
     @PostMapping("/product")
+    @PreAuthorize("hasAuthority('MODIFY_INVENTORY')")
     public ResponseEntity<GeneralResponse<ProductResponse>> createProduct(@Valid @RequestBody ProductRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(GeneralResponse.of(HttpStatus.CREATED.value(), productService.createProduct(request)));
@@ -58,6 +60,7 @@ public class InventoryController {
     @Operation(summary = "List products", description = "Returns all products, optionally filtered by status.")
     @ApiResponse(responseCode = "200", description = "Product list returned")
     @GetMapping("/product")
+    @PreAuthorize("hasAuthority('VIEW_INVENTORY')")
     public ResponseEntity<GeneralResponse<List<ProductResponse>>> list(
             @Parameter(description = "Optional product status filter") @RequestParam(required = false) ProductStatus status) {
         return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), productService.listProducts(status)));
@@ -69,6 +72,7 @@ public class InventoryController {
             @ApiResponse(responseCode = "404", description = "Product not found", content = @Content)
     })
     @GetMapping("/product/{productId}")
+    @PreAuthorize("hasAuthority('VIEW_INVENTORY')")
     public ResponseEntity<GeneralResponse<ProductResponse>> get(
             @Parameter(description = "Product identifier", required = true) @PathVariable Long productId) {
         return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), productService.getProduct(productId)));
@@ -82,6 +86,7 @@ public class InventoryController {
             @ApiResponse(responseCode = "409", description = "SKU already exists", content = @Content)
     })
     @PutMapping("/product/{productId}")
+    @PreAuthorize("hasAuthority('MODIFY_INVENTORY')")
     public ResponseEntity<GeneralResponse<ProductResponse>> update(
             @Parameter(description = "Product identifier", required = true) @PathVariable Long productId,
             @Valid @RequestBody ProductUpdateRequest request) {
@@ -95,6 +100,7 @@ public class InventoryController {
             @ApiResponse(responseCode = "404", description = "Product not found", content = @Content)
     })
     @PatchMapping("/product/{productId}/status")
+    @PreAuthorize("hasAuthority('MODIFY_INVENTORY')")
     public ResponseEntity<GeneralResponse<ProductResponse>> updateStatus(
             @Parameter(description = "Product identifier", required = true) @PathVariable Long productId,
             @Valid @RequestBody ProductStatusUpdateRequest request) {
@@ -107,6 +113,7 @@ public class InventoryController {
             @ApiResponse(responseCode = "404", description = "Stock level not found", content = @Content)
     })
     @GetMapping("/{productId}/stock")
+    @PreAuthorize("hasAuthority('VIEW_INVENTORY')")
     public ResponseEntity<GeneralResponse<StockLevelResponse>> stock(
             @Parameter(description = "Product identifier", required = true) @PathVariable Long productId) {
         return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), stockService.getStockLevel(productId)));
@@ -119,6 +126,7 @@ public class InventoryController {
             @ApiResponse(responseCode = "404", description = "Product or stock level not found", content = @Content)
     })
     @PostMapping("/{productId}/stock/adjust")
+    @PreAuthorize("hasAuthority('MODIFY_INVENTORY')")
     public ResponseEntity<GeneralResponse<StockLevelResponse>> adjustStock(
             @Parameter(description = "Product identifier", required = true) @PathVariable Long productId,
             @Valid @RequestBody StockAdjustmentRequest request) {
@@ -128,6 +136,7 @@ public class InventoryController {
     @Operation(summary = "Reserve inventory", description = "Reserves item quantities for an order. Returns reserved=false when any item cannot be reserved.")
     @ApiResponse(responseCode = "200", description = "Reservation result returned")
     @PostMapping("/reservations")
+    @PreAuthorize("hasAuthority('PROCESS_PAYMENT') or hasAuthority('CREATE_ORDER')")
     public ResponseEntity<GeneralResponse<ReserveInventoryResponse>> reserveInventory(@Valid @RequestBody ReserveInventoryRequest request) {
         return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), stockService.reserveInventory(request)));
     }
@@ -135,6 +144,7 @@ public class InventoryController {
     @Operation(summary = "Release inventory", description = "Releases previously reserved quantities for an order.")
     @ApiResponse(responseCode = "204", description = "Inventory released")
     @PostMapping("/reservations/release")
+    @PreAuthorize("hasAuthority('PROCESS_PAYMENT') or hasAuthority('CREATE_ORDER')")
     public ResponseEntity<GeneralResponse<Void>> releaseInventory(@Valid @RequestBody ReleaseInventoryRequest request) {
         stockService.releaseInventory(request);
         return ResponseEntity.status(HttpStatus.NO_CONTENT)
@@ -147,6 +157,7 @@ public class InventoryController {
             @ApiResponse(responseCode = "404", description = "Product not found", content = @Content)
     })
     @GetMapping("/{productId}/transactions")
+    @PreAuthorize("hasAuthority('VIEW_INVENTORY')")
     public ResponseEntity<GeneralResponse<Page<InventoryTransactionResponse>>> transactions(
             @Parameter(description = "Product identifier", required = true) @PathVariable Long productId,
             @PageableDefault(size = 20, direction = Sort.Direction.ASC) Pageable pageable) {

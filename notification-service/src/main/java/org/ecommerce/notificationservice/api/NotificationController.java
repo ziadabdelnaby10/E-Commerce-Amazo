@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/v1/notifications")
@@ -30,6 +31,7 @@ public class NotificationController {
     private final NotificationApplicationService notificationService;
 
     @GetMapping
+    @PreAuthorize("authentication != null and authentication.principal instanceof T(org.springframework.security.oauth2.jwt.Jwt) and authentication.principal.claims['userId'] == #userId.toString() or hasAnyAuthority('VIEW_USERS')")
     public ResponseEntity<GeneralResponse<Page<NotificationSummaryResponse>>> getInbox(
             @RequestParam Long userId,
             @RequestParam(required = false) NotificationType type,
@@ -40,16 +42,19 @@ public class NotificationController {
     }
 
     @GetMapping("/{notificationId}")
+    @PreAuthorize("hasAuthority('VIEW_USERS')")
     public ResponseEntity<GeneralResponse<NotificationDetailResponse>> getByNotificationId(@PathVariable String notificationId) {
         return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), notificationService.getByNotificationId(notificationId)));
     }
 
     @GetMapping("/preferences/{userId}")
+    @PreAuthorize("authentication != null and authentication.principal instanceof T(org.springframework.security.oauth2.jwt.Jwt) and authentication.principal.claims['userId'] == #userId.toString() or hasAnyAuthority('VIEW_USERS')")
     public ResponseEntity<GeneralResponse<NotificationPreferenceResponse>> getPreferences(@PathVariable Long userId) {
         return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), notificationService.getPreferences(userId)));
     }
 
     @PutMapping("/preferences/{userId}")
+    @PreAuthorize("authentication != null and authentication.principal instanceof T(org.springframework.security.oauth2.jwt.Jwt) and authentication.principal.claims['userId'] == #userId.toString()")
     public ResponseEntity<GeneralResponse<NotificationPreferenceResponse>> updatePreferences(
             @PathVariable Long userId,
             @RequestBody UpdateNotificationPreferenceRequest request
