@@ -4,13 +4,14 @@ import org.ecommerce.customerservice.TestDataFactory;
 import org.ecommerce.customerservice.entity.Customer;
 import org.ecommerce.customerservice.entity.Role;
 import org.ecommerce.customerservice.exception.CustomerNotFoundException;
+import org.ecommerce.customerservice.exception.DefaultRoleMissingException;
 import org.ecommerce.customerservice.exception.DuplicateEmailException;
 import org.ecommerce.customerservice.mapper.CustomerMapper;
 import org.ecommerce.customerservice.repository.CustomerRepository;
-import org.ecommerce.customerservice.repository.RoleRepository;
 import org.ecommerce.customerservice.request.CustomerRequest;
 import org.ecommerce.customerservice.response.CustomerResponse;
 import org.ecommerce.customerservice.service.PasswordService;
+import org.ecommerce.customerservice.service.RolePermissionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,7 +43,7 @@ class CustomerServiceImplTest {
     private CustomerMapper customerMapper;
 
     @Mock
-    private RoleRepository roleRepository;
+    private RolePermissionService rolePermissionService;
 
     @Mock
     private PasswordService passwordService;
@@ -66,7 +67,7 @@ class CustomerServiceImplTest {
         when(customerRepository.existsByEmailIgnoreCase(request.email())).thenReturn(false);
         when(customerMapper.toCustomer(request)).thenReturn(customer);
         when(passwordService.encrypt(request.password())).thenReturn("$2a$10$encoded");
-        when(roleRepository.findByName("ROLE_USER")).thenReturn(Optional.of(Role.builder().id(1L).name("ROLE_USER").build()));
+        when(rolePermissionService.getDefaultUserRole()).thenReturn(Role.builder().id(1L).name("ROLE_USER").build());
         when(customerRepository.save(customer)).thenReturn(customer);
 
         UUID result = customerService.createCustomer(request);
@@ -75,6 +76,20 @@ class CustomerServiceImplTest {
         assertThat(customer.getPasswordHash()).isEqualTo("$2a$10$encoded");
         verify(customerMapper).toCustomer(request);
         verify(customerRepository).save(customer);
+    }
+
+    @Test
+    void createCustomer_shouldFailWhenDefaultRoleIsMissing() {
+        when(customerRepository.existsByEmailIgnoreCase(request.email())).thenReturn(false);
+        when(customerMapper.toCustomer(request)).thenReturn(customer);
+        when(passwordService.encrypt(request.password())).thenReturn("$2a$10$encoded");
+        when(rolePermissionService.getDefaultUserRole()).thenThrow(new DefaultRoleMissingException("Default role is missing: ROLE_USER"));
+
+        assertThatThrownBy(() -> customerService.createCustomer(request))
+                .isInstanceOf(DefaultRoleMissingException.class)
+                .hasMessage("Default role is missing: ROLE_USER");
+
+        verify(customerRepository, never()).save(any());
     }
 
     @Test

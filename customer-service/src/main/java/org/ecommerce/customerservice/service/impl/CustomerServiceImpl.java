@@ -5,12 +5,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.ecommerce.customerservice.exception.CustomerNotFoundException;
 import org.ecommerce.customerservice.exception.DuplicateEmailException;
 import org.ecommerce.customerservice.repository.CustomerRepository;
-import org.ecommerce.customerservice.repository.RoleRepository;
 import org.ecommerce.customerservice.mapper.CustomerMapper;
 import org.ecommerce.customerservice.request.CustomerRequest;
 import org.ecommerce.customerservice.response.CustomerResponse;
 import org.ecommerce.customerservice.service.CustomerService;
 import org.ecommerce.customerservice.service.PasswordService;
+import org.ecommerce.customerservice.service.RolePermissionService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -25,7 +25,7 @@ import java.util.UUID;
 public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
-    private final RoleRepository roleRepository;//TODO Create a Role service for it
+    private final RolePermissionService rolePermissionService;
     private final PasswordService passwordService;
     private final CustomerMapper customerMapper;
 
@@ -38,7 +38,7 @@ public class CustomerServiceImpl implements CustomerService {
 
         var customer = customerMapper.toCustomer(request);
         customer.setPasswordHash(passwordService.encrypt(request.password()));
-        roleRepository.findByName("ROLE_USER").ifPresent(role -> customer.getRoles().add(role));
+        customer.getRoles().add(rolePermissionService.getDefaultUserRole());
         return customerRepository.save(customer).getId();
     }
 

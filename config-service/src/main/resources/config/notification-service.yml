@@ -62,10 +62,9 @@ application:
     batch-size: 100
     fixed-delay-ms: 30000
     base-delay-minutes: 5
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,prometheus
-
+  security:
+    enabled: true
+    jwt:
+      secret: I_gu6p0FVNHP_Hhjt0cHXF-eFwYGB8ph1xwUOKaBYljDfsXnHpfYAYgaRC8msRTc
+      issuer: ecommerce-platform
+      access-token-ttl: 15m

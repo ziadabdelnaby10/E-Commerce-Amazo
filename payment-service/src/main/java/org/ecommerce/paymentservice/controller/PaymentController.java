@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @Validated
@@ -31,17 +32,22 @@ public class PaymentController {
     private final PaymentService paymentService;
 
     @PostMapping
+    @PreAuthorize("hasAuthority('PROCESS_PAYMENT')")
     public ResponseEntity<GeneralResponse<InitiatePaymentResponse>> initiate(@Valid @RequestBody InitiatePaymentRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(GeneralResponse.of(HttpStatus.CREATED.value(), paymentService.initiatePayment(request)));
     }
 
     @GetMapping("/{paymentId}")
+    @PreAuthorize("hasAuthority('VIEW_PAYMENTS')")
     public ResponseEntity<GeneralResponse<PaymentResponse>> getByPaymentId(@PathVariable String paymentId) {
         return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), paymentService.getByPaymentId(paymentId)));
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('VIEW_PAYMENTS') and (hasAuthority('VIEW_USERS') "
+            + "or (authentication.principal instanceof T(org.springframework.security.oauth2.jwt.Jwt) "
+            + "and authentication.principal.claims['userId'] == #userId))")
     public ResponseEntity<GeneralResponse<Page<PaymentSummaryResponse>>> listByUser(
             @RequestParam String userId,
             @RequestParam(required = false) PaymentStatus status,

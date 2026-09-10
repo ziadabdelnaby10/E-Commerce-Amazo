@@ -19,6 +19,14 @@ spring:
     enabled: true
     baseline-description: "init"
     baseline-version: 0
+application:
+  security:
+    enabled: true
+    jwt:
+      secret: I_gu6p0FVNHP_Hhjt0cHXF-eFwYGB8ph1xwUOKaBYljDfsXnHpfYAYgaRC8msRTc
+      issuer: ecommerce-platform
+      access-token-ttl: 15m
+      refresh-token-ttl: 30d
 server:
   port: 9001
   servlet:

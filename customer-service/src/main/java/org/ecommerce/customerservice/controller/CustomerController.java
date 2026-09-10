@@ -12,12 +12,13 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
 @RestController
-@RequestMapping("v1/customers")
+@RequestMapping("/v1/customers")
 @RequiredArgsConstructor
 public class CustomerController {
 
@@ -31,12 +32,14 @@ public class CustomerController {
     }
 
     @PutMapping("/{customerId}")
+    @PreAuthorize("hasAuthority('MODIFY_USER') or (authentication != null and authentication.principal instanceof T(org.springframework.security.oauth2.jwt.Jwt) and authentication.principal.claims['userId'] == #customerId.toString())")
     public ResponseEntity<GeneralResponse<Void>> updateCustomer(@PathVariable UUID customerId, @RequestBody @Valid CustomerRequest request) {
         service.updateCustomer(customerId, request);
         return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), null));
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('VIEW_USERS')")
     public ResponseEntity<GeneralResponse<Page<CustomerResponse>>> findAll(
             @PageableDefault(size = 20, direction = Sort.Direction.ASC)
             Pageable pageable) {
@@ -44,6 +47,7 @@ public class CustomerController {
     }
 
     @GetMapping("/exists/{customerId}")
+    @PreAuthorize("hasAnyAuthority('VIEW_USERS', 'ROLE_SYSTEM') or (authentication != null and authentication.principal instanceof T(org.springframework.security.oauth2.jwt.Jwt) and authentication.principal.claims['userId'] == #customerId.toString())")
     public ResponseEntity<GeneralResponse<Boolean>> existsById(
             @PathVariable UUID customerId
     ) {
@@ -51,6 +55,7 @@ public class CustomerController {
     }
 
     @GetMapping("/{customerId}")
+    @PreAuthorize("hasAuthority('VIEW_USERS') or (authentication != null and authentication.principal instanceof T(org.springframework.security.oauth2.jwt.Jwt) and authentication.principal.claims['userId'] == #customerId.toString())")
     public ResponseEntity<GeneralResponse<CustomerResponse>> findById(
             @PathVariable UUID customerId
     ) {
@@ -58,6 +63,7 @@ public class CustomerController {
     }
 
     @DeleteMapping("/{customerId}")
+    @PreAuthorize("hasAuthority('DELETE_USER') or (authentication != null and authentication.principal instanceof T(org.springframework.security.oauth2.jwt.Jwt) and authentication.principal.claims['userId'] == #customerId.toString())")
     public ResponseEntity<GeneralResponse<Void>> delete(
             @PathVariable UUID customerId
     ) {

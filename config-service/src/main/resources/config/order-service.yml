@@ -66,6 +66,12 @@ application:
     customer-url: http://localhost:9001/api/v1/customers
     payment-url: http://localhost:9004/api/v1/payments
     inventory-url: http://localhost:9002/api/v1/inventory
+  security:
+    enabled: true
+    jwt:
+      secret: I_gu6p0FVNHP_Hhjt0cHXF-eFwYGB8ph1xwUOKaBYljDfsXnHpfYAYgaRC8msRTc
+      issuer: ecommerce-platform
+      access-token-ttl: 15m
 
 bootui:
   enabled: on

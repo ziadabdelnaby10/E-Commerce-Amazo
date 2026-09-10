@@ -19,8 +19,13 @@ spring:
     enabled: true
     baseline-description: "init"
     baseline-version: 0
-#    user: ${spring.datasource.username}
-#    password: ${spring.datasource.password}
+
+application:
+  security:
+    enabled: true
+    jwt:
+      secret: I_gu6p0FVNHP_Hhjt0cHXF-eFwYGB8ph1xwUOKaBYljDfsXnHpfYAYgaRC8msRTc
+      issuer: ecommerce-platform
 
 server:
   port: 9002

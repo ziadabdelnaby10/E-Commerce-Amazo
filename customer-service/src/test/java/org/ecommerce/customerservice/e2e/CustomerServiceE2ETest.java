@@ -11,6 +11,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwsHeader;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -22,6 +27,9 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -59,15 +67,21 @@ class CustomerServiceE2ETest {
     @Autowired
     private CustomerRepository customerRepository;
 
+    @Autowired
+    private JwtEncoder jwtEncoder;
+
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     private String baseUrl;
 
+    private String adminToken;
+
     @BeforeEach
     void setUp() {
         customerRepository.deleteAll();
         baseUrl = "http://localhost:" + port + "/api/v1/customers";
+        adminToken = adminToken();
     }
 
     @Test
@@ -168,7 +182,8 @@ class CustomerServiceE2ETest {
         try {
             HttpRequest.Builder builder = HttpRequest.newBuilder()
                     .uri(URI.create(url))
-                    .header("Content-Type", "application/json");
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer " + adminToken);
 
             if (body == null) {
                 builder.method(method, HttpRequest.BodyPublishers.noBody());
@@ -180,6 +195,22 @@ class CustomerServiceE2ETest {
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
+    }
+
+    /** Builds a token signed with the same key the application uses in the test profile. */
+    private String adminToken() {
+        Instant issuedAt = Instant.now();
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .issuer("ecommerce-platform")
+                .issuedAt(issuedAt)
+                .expiresAt(issuedAt.plus(1, ChronoUnit.HOURS))
+                .subject("admin@example.com")
+                .claim("userId", UUID.randomUUID().toString())
+                .claim("roles", List.of("ADMIN"))
+                .claim("permissions", List.of("VIEW_USERS", "MODIFY_USER", "DELETE_USER"))
+                .build();
+        return jwtEncoder.encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(), claims))
+                .getTokenValue();
     }
 
     private Map<String, Object> readJson(String json) {

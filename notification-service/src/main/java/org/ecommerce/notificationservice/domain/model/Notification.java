@@ -109,7 +109,7 @@ public class Notification {
     private Long version;
 
     @OneToMany(mappedBy = "notification", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<org.ecommerce.notificationservice.domain.model.NotificationLog> logs = new ArrayList<>();
+    private List<NotificationLog> logs = new ArrayList<>();
 }
 
 

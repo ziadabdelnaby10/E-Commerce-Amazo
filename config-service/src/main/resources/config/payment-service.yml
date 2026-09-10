@@ -43,10 +43,9 @@ application:
     topics:
       payment-events: payment-events
       payment-events-dlq: payment-events-dlq
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,prometheus
-
+  security:
+    enabled: true
+    jwt:
+      secret: I_gu6p0FVNHP_Hhjt0cHXF-eFwYGB8ph1xwUOKaBYljDfsXnHpfYAYgaRC8msRTc
+      issuer: ecommerce-platform
+      access-token-ttl: 15m
