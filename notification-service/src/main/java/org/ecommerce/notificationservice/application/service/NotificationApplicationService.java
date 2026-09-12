@@ -10,7 +10,6 @@ import org.ecommerce.notificationservice.api.dto.NotificationPreferenceResponse;
 import org.ecommerce.notificationservice.api.dto.NotificationSummaryResponse;
 import org.ecommerce.notificationservice.api.dto.UpdateNotificationPreferenceRequest;
 import org.ecommerce.notificationservice.application.exception.NotificationNotFoundException;
-import org.ecommerce.notificationservice.application.port.out.CustomerContactPort;
 import org.ecommerce.notificationservice.application.port.out.EmailSenderPort;
 import org.ecommerce.notificationservice.application.port.out.NotificationEventPublisherPort;
 import org.ecommerce.notificationservice.application.usecase.model.InboundEvent;
@@ -63,7 +62,6 @@ public class NotificationApplicationService {
     private final ObjectMapper objectMapper;
     private final TemplateRenderer templateRenderer;
     private final EmailSenderPort emailSenderPort;
-    private final CustomerContactPort customerContactPort;
     private final NotificationEventPublisherPort eventPublisherPort;
 
     @Value("${application.retry.batch-size:100}")
@@ -336,15 +334,22 @@ public class NotificationApplicationService {
         ));
     }
 
+    /**
+     * Resolves the recipient purely from the event payload.
+     *
+     * <p>Events are consumed on a Kafka thread with no authenticated caller, so there is no token to
+     * relay to customer-service. Producers therefore embed the recipient address in the payload,
+     * which also makes each event independently replayable.</p>
+     */
     private String resolveRecipientAddress(JsonNode payload, Long userId) {
         if (payload != null && payload.hasNonNull("email")) {
-            return payload.get("email").asText();
+            String email = payload.get("email").asText();
+            if (!email.isBlank()) {
+                return email;
+            }
         }
-        Optional<String> customerEmail = customerContactPort.resolveEmailByUserId(userId);
-        if (customerEmail.isPresent()) {
-            return customerEmail.get();
-        }
-        throw new IllegalArgumentException("Could not resolve email recipient for userId=" + userId);
+        throw new IllegalArgumentException(
+                "Event payload carries no 'email' field; cannot resolve recipient for userId=" + userId);
     }
 
     private boolean isEligibleByPreference(NotificationPreference preference, String eventType, NotificationType type) {

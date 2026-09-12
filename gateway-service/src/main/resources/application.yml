@@ -2,8 +2,10 @@ spring:
   application:
     name: gateway-service
   config:
-    import: optional:configserver:http://localhost:8888
+    import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
 
 logging:
   level:
-    org.springframework.security: debug
+    # Verbose security tracing is a development aid: the dev profile turns it on, prod leaves
+    # it at info because it logs token handling detail that does not belong in prod logs.
+    org.springframework.security: ${SECURITY_LOG_LEVEL:info}

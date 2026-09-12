@@ -38,17 +38,27 @@ public class CustomerAuthServiceImpl implements CustomerAuthService {
     private final PasswordService passwordService;
     private final JwtTokenService jwtTokenService;
     private final JwtSecurityProperties jwtSecurityProperties;
+    private final LoginAttemptService loginAttemptService;
 
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request) {
+        loginAttemptService.assertNotLocked(request.email());
+
         Customer customer = customerRepository.findByEmailIgnoreCaseAndDeletedAtIsNull(request.email())
-                .orElseThrow(this::unauthorized);
+                .orElseThrow(() -> {
+                    // Counted even for unknown emails, otherwise the endpoint becomes an
+                    // unthrottled oracle for enumerating which accounts exist.
+                    loginAttemptService.recordFailure(request.email());
+                    return unauthorized();
+                });
 
         if (!passwordService.isPasswordValid(request.password(), customer.getPasswordHash())) {
+            loginAttemptService.recordFailure(request.email());
             throw unauthorized();
         }
 
+        loginAttemptService.recordSuccess(request.email());
         customer.setLastLoginAt(Instant.now());
         customerRepository.save(customer);
 

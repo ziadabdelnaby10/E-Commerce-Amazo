@@ -38,7 +38,10 @@ zookeeper_logs/
 kafka_data/
 
 # Environment
+# .env.dev is committed on purpose: weak, laptop-only values so the stack runs out of the box.
+# .env.prod is not, because it carries the real JWT signing key and database password.
 .env
+.env.prod
 .env.local
 *.properties.local
 

@@ -60,7 +60,7 @@ class PaymentServiceImplTest {
 
     @Test
     void shouldReturnExistingPaymentForIdempotentOrder() {
-        InitiatePaymentRequest request = new InitiatePaymentRequest(10L, "user-10", BigDecimal.TEN, "USD");
+        InitiatePaymentRequest request = new InitiatePaymentRequest(10L, "user-10", BigDecimal.TEN, "USD", "user10@example.com");
         Payment existing = Payment.builder()
                 .paymentId("PAY-EXISTING")
                 .orderId(10L)
@@ -88,7 +88,7 @@ class PaymentServiceImplTest {
 
     @Test
     void shouldCreateAndPublishCompletedPaymentWhenAmountWithinLimit() {
-        InitiatePaymentRequest request = new InitiatePaymentRequest(77L, "user-77", BigDecimal.valueOf(99.99), "USD");
+        InitiatePaymentRequest request = new InitiatePaymentRequest(77L, "user-77", BigDecimal.valueOf(99.99), "USD", "user77@example.com");
         Payment mapped = Payment.builder()
                 .orderId(77L)
                 .userId("user-77")
@@ -105,11 +105,10 @@ class PaymentServiceImplTest {
         assertNull(response.reason());
 
         ArgumentCaptor<String> eventTypeCaptor = ArgumentCaptor.forClass(String.class);
-        verify(paymentEventPublisher).publish(eventTypeCaptor.capture(), any(Payment.class));
+        verify(paymentEventPublisher).publish(eventTypeCaptor.capture(), any(Payment.class), eq("user77@example.com"));
         assertEquals("PaymentCompleted", eventTypeCaptor.getValue());
         verify(paymentTransactionRepository, times(1)).save(any());
         verify(paymentAuditLogRepository, times(1)).save(any());
         verify(paymentMapper, times(1)).toPayment(eq(request));
     }
 }
-

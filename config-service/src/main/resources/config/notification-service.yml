@@ -1,12 +1,12 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5434/notification_db
-    username: postgres
-    password: rootroot
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5434}/${NOTIFICATION_DB_NAME:notification_db}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:rootroot}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 5
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
       idle-timeout: 30000
       max-lifetime: 1200000
       connection-timeout: 20000
@@ -20,7 +20,7 @@ spring:
     baseline-description: "init"
     baseline-version: 0
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -31,24 +31,23 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
   mail:
-    host: localhost
-    port: 1025
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
     properties:
       mail:
         smtp:
-          auth: false
+          auth: ${MAIL_SMTP_AUTH:false}
           starttls:
-            enable: false
+            enable: ${MAIL_SMTP_STARTTLS:false}
 
 server:
-  port: 9005
+  port: ${SERVER_PORT:9005}
   servlet:
     context-path: /api
 
 application:
   config:
-    customer-url: http://localhost:9001/api/v1/customers
-    from-address: no-reply@ecommerce.local
+    from-address: ${MAIL_FROM_ADDRESS:no-reply@ecommerce.local}
   kafka:
     topics:
       order-events: order-events
@@ -65,6 +64,12 @@ application:
   security:
     enabled: true
     jwt:
-      secret: I_gu6p0FVNHP_Hhjt0cHXF-eFwYGB8ph1xwUOKaBYljDfsXnHpfYAYgaRC8msRTc
-      issuer: ecommerce-platform
-      access-token-ttl: 15m
+      secret: ${JWT_SECRET}
+      issuer: ${JWT_ISSUER:ecommerce-platform}
+      access-token-ttl: ${JWT_ACCESS_TTL:15m}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
