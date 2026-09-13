@@ -6,6 +6,8 @@ spring:
       enabled: false
     discovery:
       enabled: false
+  main:
+    web-application-type: reactive
 
 eureka:
   client:

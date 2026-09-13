@@ -73,7 +73,7 @@ public class PaymentServiceImpl implements PaymentService {
         paymentTransactionRepository.save(buildTransaction(saved));
         paymentAuditLogRepository.save(buildAuditLog(saved));
 
-        publishPaymentEvent(saved);
+        publishPaymentEvent(saved, request.customerEmail());
 
         if (saved.getStatus() == PaymentStatus.CAPTURED) {
             return new InitiatePaymentResponse(saved.getPaymentId(), PaymentStatus.AUTHORIZED.name(), null);
@@ -133,9 +133,9 @@ public class PaymentServiceImpl implements PaymentService {
                 .build();
     }
 
-    private void publishPaymentEvent(Payment payment) {
+    private void publishPaymentEvent(Payment payment, String customerEmail) {
         String eventType = payment.getStatus() == PaymentStatus.CAPTURED ? "PaymentCompleted" : "PaymentFailed";
-        paymentEventPublisher.publish(eventType, payment);
+        paymentEventPublisher.publish(eventType, payment, customerEmail);
     }
 }
 

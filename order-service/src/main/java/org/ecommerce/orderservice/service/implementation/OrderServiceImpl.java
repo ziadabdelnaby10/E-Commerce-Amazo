@@ -1,6 +1,8 @@
 package org.ecommerce.orderservice.service.implementation;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +14,7 @@ import org.ecommerce.orderservice.exception.OrderNotFoundException;
 import org.ecommerce.orderservice.service.OrderService;
 import org.ecommerce.orderservice.infrastructure.client.OrderDependencyGateway;
 import org.ecommerce.orderservice.infrastructure.client.dto.InitiatePaymentResponse;
+import org.ecommerce.orderservice.infrastructure.client.dto.CustomerResponse;
 import org.ecommerce.orderservice.infrastructure.client.dto.ReserveInventoryResponse;
 import org.ecommerce.orderservice.domain.model.IdempotencyKey;
 import org.ecommerce.orderservice.domain.model.Order;
@@ -73,6 +76,9 @@ public class OrderServiceImpl implements OrderService {
 
         Order order = orderMapper.toOrder(request);
         order.setUserId(userId);
+        order.setCustomerEmail(dependencyGateway.findCustomer(userId)
+                .map(CustomerResponse::email)
+                .orElse(null));
         order.setOrderNumber(generateOrderNumber());
         order.setStatus(OrderStatus.PENDING);
         order.setPaymentStatus(PaymentStatus.PENDING);
@@ -212,7 +218,7 @@ public class OrderServiceImpl implements OrderService {
         event.setEventId(UUID.randomUUID().toString());
         event.setOrder(order);
         event.setEventType(eventType);
-        event.setEventPayload(objectMapper.valueToTree(orderMapper.toResponse(order)));
+        event.setEventPayload(buildEventPayload(order));
         event.setPublishedToKafka(publishedToKafka);
         event.setCreatedAt(Instant.now());
         return event;
@@ -223,10 +229,23 @@ public class OrderServiceImpl implements OrderService {
         event.setEventId(eventId);
         event.setOrder(order);
         event.setEventType(eventType);
-        event.setEventPayload(objectMapper.valueToTree(orderMapper.toResponse(order)));
+        event.setEventPayload(buildEventPayload(order));
         event.setPublishedToKafka(true);
         event.setCreatedAt(Instant.now());
         return event;
+    }
+
+    /**
+     * Builds the event payload as the order projection plus the recipient email.
+     *
+     * <p>The email makes the event self-contained: notification-service consumes it from a Kafka
+     * thread that has no caller token, so it cannot look the address up over HTTP.</p>
+     */
+    private JsonNode buildEventPayload(Order order) {
+        ObjectNode payload = objectMapper.valueToTree(orderMapper.toResponse(order));
+        payload.put("userId", order.getUserId());
+        payload.put("email", order.getCustomerEmail());
+        return payload;
     }
 
     private void applyCancellation(Order order, String changedBy, String reason) {

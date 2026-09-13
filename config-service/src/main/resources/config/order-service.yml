@@ -1,12 +1,12 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5434/order_db
-    username: postgres
-    password: rootroot
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5434}/${ORDER_DB_NAME:order_db}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:rootroot}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 5
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
       idle-timeout: 30000
       max-lifetime: 1200000
       connection-timeout: 20000
@@ -26,7 +26,7 @@ spring:
     baseline-description: "init"
     baseline-version: 0
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       acks: all
       retries: 3
@@ -41,7 +41,7 @@ spring:
       ack-mode: record
 
 server:
-  port: 9003
+  port: ${SERVER_PORT:9003}
   servlet:
     context-path: /api
 
@@ -62,23 +62,15 @@ application:
     outbox:
       batch-size: 100
       fixed-delay-ms: 3000
-  config:
-    customer-url: http://localhost:9001/api/v1/customers
-    payment-url: http://localhost:9004/api/v1/payments
-    inventory-url: http://localhost:9002/api/v1/inventory
+  # Downstream services are now reached through Eureka service ids (see the @FeignClient
+  # declarations), so there are no host/port URLs to configure here any more.
   security:
     enabled: true
     jwt:
-      secret: I_gu6p0FVNHP_Hhjt0cHXF-eFwYGB8ph1xwUOKaBYljDfsXnHpfYAYgaRC8msRTc
-      issuer: ecommerce-platform
-      access-token-ttl: 15m
+      secret: ${JWT_SECRET}
+      issuer: ${JWT_ISSUER:ecommerce-platform}
+      access-token-ttl: ${JWT_ACCESS_TTL:15m}
 
 bootui:
-  enabled: on
+  enabled: ${BOOTUI_ENABLED:on}
   api-path: /bootui
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,prometheus

@@ -4,6 +4,7 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import org.ecommerce.inventoryservice.controller.InventoryController;
 import org.ecommerce.inventoryservice.service.InventoryService;
 import org.ecommerce.inventoryservice.service.ProductService;
+import org.ecommerce.inventoryservice.service.StockReservationCoordinator;
 import org.ecommerce.inventoryservice.service.StockService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,6 +59,9 @@ class InventorySecurityChainTest {
 
     @MockitoBean
     private StockService stockService;
+
+    @MockitoBean
+    private StockReservationCoordinator stockReservationCoordinator;
 
     @Test
     void request_withoutToken_isRejectedWithJsonUnauthorized() throws Exception {

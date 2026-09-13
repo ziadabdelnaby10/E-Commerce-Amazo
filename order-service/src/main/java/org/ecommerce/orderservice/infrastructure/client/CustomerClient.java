@@ -5,7 +5,11 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-@FeignClient(name = "customerClient", url = "${application.config.customer-url}")
+/**
+ * Resolved through Eureka: {@code name} is the service id and {@code path} carries the target's
+ * servlet context path plus controller mapping, so no host or port is hardcoded.
+ */
+@FeignClient(name = "customer-service", path = "/api/v1/customers")
 public interface CustomerClient {
 
     @GetMapping("/exists/{customerId}")

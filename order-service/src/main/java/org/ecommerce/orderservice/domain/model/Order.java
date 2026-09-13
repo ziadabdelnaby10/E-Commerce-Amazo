@@ -37,6 +37,15 @@ public class Order {
     @Column(name = "user_id", nullable = false)
     private String userId;
 
+    /**
+     * Snapshot of the customer's email at order time.
+     *
+     * <p>Copied into every emitted order event so downstream consumers (notification-service)
+     * never have to call customer-service from a Kafka thread, where no caller token exists.</p>
+     */
+    @Column(name = "customer_email", length = 255)
+    private String customerEmail;
+
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "status")

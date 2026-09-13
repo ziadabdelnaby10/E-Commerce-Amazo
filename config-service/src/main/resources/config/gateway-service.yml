@@ -1,11 +1,13 @@
 server:
-  port: 9080
+  port: ${SERVER_PORT:9080}
 
 spring:
   cloud:
     gateway:
       server:
         webflux:
+          # All routes use lb:// so the gateway resolves instances through Eureka rather than
+          # hardcoded host:port pairs, which is what allows services to scale behind it.
           routes:
             - id: customer-auth-service
               uri: lb://customer-service
@@ -15,60 +17,75 @@ spring:
               uri: lb://inventory-service
               predicates:
                 - Path=/api/v1/inventory/**
-#          filters:
-#            - name: CircuitBreaker
-#              args:
-#                name: inventoryServiceCircuitBreaker
-#                fallbackUri: forward:/fallback/inventory
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: inventoryServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/inventory
             - id: order-service
               uri: lb://order-service
               predicates:
                 - Path=/api/v1/orders/**
-#          filters:
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: orderServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/orders
             - id: payment-service
               uri: lb://payment-service
               predicates:
                 - Path=/api/v1/payments/**
-#          filters:
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: paymentServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/payments
             - id: customer-service
               uri: lb://customer-service
               predicates:
                 - Path=/api/v1/customers,/api/v1/customers/**
-#          filters:
-#            - name: CircuitBreaker
-#              args:
-#                name: customerServiceCircuitBreaker
-#                fallbackUri: forward:/fallback/customers
-#            - name: Retry
-#              args:
-#                retries: 2
-#                methods: GET
-#                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT,INTERNAL_SERVER_ERROR
-#                backoff:
-#                  firstBackoff: 50ms
-#                  maxBackoff: 500ms
-#                  factor: 2
-#                  basedOnPreviousValue: false
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: customerServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/customers
             - id: notification-service
               uri: lb://notification-service
               predicates:
                 - Path=/api/v1/notifications/**
 
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 20
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 5
+        registerHealthIndicator: true
+    instances:
+      inventoryServiceCircuitBreaker:
+        baseConfig: default
+      orderServiceCircuitBreaker:
+        baseConfig: default
+      paymentServiceCircuitBreaker:
+        baseConfig: default
+      customerServiceCircuitBreaker:
+        baseConfig: default
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: ${GATEWAY_TIMEOUT:5s}
+
 application:
   security:
     enabled: true
     jwt:
-      secret: I_gu6p0FVNHP_Hhjt0cHXF-eFwYGB8ph1xwUOKaBYljDfsXnHpfYAYgaRC8msRTc
-      issuer: ecommerce-platform
+      secret: ${JWT_SECRET}
+      issuer: ${JWT_ISSUER:ecommerce-platform}
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info,prometheus,gateway
-
-
-eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka

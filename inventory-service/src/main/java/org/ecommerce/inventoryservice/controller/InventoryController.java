@@ -22,6 +22,7 @@ import org.ecommerce.inventoryservice.model.response.ReserveInventoryResponse;
 import org.ecommerce.inventoryservice.model.response.StockLevelResponse;
 import org.ecommerce.inventoryservice.service.InventoryService;
 import org.ecommerce.inventoryservice.service.ProductService;
+import org.ecommerce.inventoryservice.service.StockReservationCoordinator;
 import org.ecommerce.inventoryservice.service.StockService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -43,6 +44,7 @@ public class InventoryController {
     private final InventoryService inventoryService;
     private final ProductService productService;
     private final StockService stockService;
+    private final StockReservationCoordinator stockReservationCoordinator;
 
     @Operation(summary = "Create a product", description = "Creates a new product and initialises its stock level. Returns 409 if the SKU already exists.")
     @ApiResponses({
@@ -133,12 +135,15 @@ public class InventoryController {
         return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), stockService.adjustStock(productId, request)));
     }
 
-    @Operation(summary = "Reserve inventory", description = "Reserves item quantities for an order. Returns reserved=false when any item cannot be reserved.")
-    @ApiResponse(responseCode = "200", description = "Reservation result returned")
+    @Operation(summary = "Reserve inventory", description = "Reserves item quantities for an order. Returns reserved=false when any item cannot be reserved. Concurrent reservations of the same product are serialised with a distributed lock; a 409 means the lock was contended and the call can be retried.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Reservation result returned"),
+            @ApiResponse(responseCode = "409", description = "Lock contended, retry", content = @Content)
+    })
     @PostMapping("/reservations")
     @PreAuthorize("hasAuthority('PROCESS_PAYMENT') or hasAuthority('CREATE_ORDER')")
     public ResponseEntity<GeneralResponse<ReserveInventoryResponse>> reserveInventory(@Valid @RequestBody ReserveInventoryRequest request) {
-        return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), stockService.reserveInventory(request)));
+        return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), stockReservationCoordinator.reserveInventory(request)));
     }
 
     @Operation(summary = "Release inventory", description = "Releases previously reserved quantities for an order.")
@@ -146,7 +151,7 @@ public class InventoryController {
     @PostMapping("/reservations/release")
     @PreAuthorize("hasAuthority('PROCESS_PAYMENT') or hasAuthority('CREATE_ORDER')")
     public ResponseEntity<GeneralResponse<Void>> releaseInventory(@Valid @RequestBody ReleaseInventoryRequest request) {
-        stockService.releaseInventory(request);
+        stockReservationCoordinator.releaseInventory(request);
         return ResponseEntity.status(HttpStatus.NO_CONTENT)
                 .body(GeneralResponse.of(HttpStatus.NO_CONTENT.value(), null));
     }

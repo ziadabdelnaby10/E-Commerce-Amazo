@@ -1,6 +1,60 @@
-FROM eclipse-temurin:21-jre
+# syntax=docker/dockerfile:1.7
+#
+# Multi-stage build: the image is produced from source alone, so CI needs no JDK or Maven and the
+# artifact cannot drift from a jar that happened to be sitting in target/.
+#
+# Generated from infra/docker/Dockerfile.template - keep the eight copies in sync.
+
+# ---------- Build ----------
+FROM maven:3.9-eclipse-temurin-21 AS build
+WORKDIR /build
+
+# Resolve dependencies against the POM only. This layer is invalidated by dependency changes, not
+# by source changes, so day-to-day rebuilds skip the slow download entirely.
+COPY pom.xml .
+RUN --mount=type=cache,target=/root/.m2 mvn -B -q dependency:go-offline
+
+COPY src ./src
+RUN --mount=type=cache,target=/root/.m2 mvn -B -q clean package -DskipTests \
+    && cp target/*.jar application.jar
+
+# Split the fat jar into layers ordered by change frequency (third-party dependencies rarely,
+# application classes on every commit) so image pushes and pulls only move what actually changed.
+RUN java -Djarmode=tools -jar application.jar extract --layers --destination extracted
+
+# ---------- Runtime ----------
+FROM eclipse-temurin:21-jre-alpine AS runtime
+
+# curl backs the HEALTHCHECK; compose uses it to gate dependent services on real readiness rather
+# than on "the container process started".
+RUN apk add --no-cache curl \
+    && addgroup -S spring \
+    && adduser -S spring -G spring
+
 WORKDIR /app
-COPY target/*SNAPSHOT.jar app.jar
+
+# Copy in layer order, least volatile first.
+COPY --from=build --chown=spring:spring /build/extracted/dependencies/ ./
+COPY --from=build --chown=spring:spring /build/extracted/spring-boot-loader/ ./
+COPY --from=build --chown=spring:spring /build/extracted/snapshot-dependencies/ ./
+COPY --from=build --chown=spring:spring /build/extracted/application/ ./
+
+# Never run as root: a container escape should not start from uid 0.
+USER spring
+
+# MaxRAMPercentage (not -Xmx) so the JVM sizes itself from the container memory limit instead of
+# the host's total RAM, which is what causes OOM-kills under compose/Kubernetes limits.
+ENV SERVER_PORT=8888 \
+    JAVA_OPTS="-XX:MaxRAMPercentage=75"
+
 EXPOSE 8888
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+
+# config-service has no upstream dependency, so it is the first container to report healthy and
+# the gate every other service waits on.
+HEALTHCHECK --interval=10s --timeout=3s --start-period=60s --retries=12 \
+    CMD curl -fsS "http://localhost:${SERVER_PORT}/actuator/health" || exit 1
+
+# Run through sh so JAVA_OPTS expands, and use `exec` so the JVM becomes PID 1 and receives
+# SIGTERM directly - that is what makes graceful shutdown work.
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar application.jar"]
 

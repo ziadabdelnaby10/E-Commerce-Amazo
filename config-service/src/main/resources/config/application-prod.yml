@@ -1,0 +1,41 @@
+# Production overlay: applied when SPRING_PROFILES_ACTIVE=prod.
+#
+# Two goals: reveal nothing that helps an attacker, and fail loudly rather than silently
+# mis-configured. Every secret here is required with no default, so a missing environment
+# variable stops startup instead of falling back to a value committed in git.
+
+spring:
+  jpa:
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+
+logging:
+  level:
+    root: warn
+    org.ecommerce: info
+    org.springframework.security: info
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Only what Prometheus and the container healthcheck need. /actuator/env and
+        # /actuator/beans would leak configuration including connection strings.
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+
+server:
+  # Do not advertise the server implementation, and reject oversized header attacks early.
+  shutdown: graceful
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+
