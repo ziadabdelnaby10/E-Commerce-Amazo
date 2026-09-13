@@ -4,20 +4,21 @@ services:
     image: postgres:17-alpine
     container_name: ecommerce-postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: rootroot
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rootroot}
       POSTGRES_DB: postgres
     ports:
+      # Host port differs from the container port so it does not clash with a locally
+      # installed PostgreSQL. Services inside the network still use 5432.
       - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - ecommerce-network
-    restart:
-      unless-stopped
+    restart: unless-stopped
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -86,20 +87,24 @@ services:
       - "1025:1025" # SMTP server
     networks:
       - ecommerce-network
+    restart: unless-stopped
 
   # ==================== Redis ====================
+  # Backs the inventory distributed lock, the customer cache and login throttling.
   redis:
     image: redis:7-alpine
     container_name: ecommerce-redis
-    command: redis-server --requirepass rootroot
+    command: redis-server --requirepass ${REDIS_PASSWORD:-rootroot}
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
       - ecommerce-network
+    restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+      # Must authenticate, otherwise the probe reports healthy while every client is rejected.
+      test: [ "CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-rootroot} ping | grep -q PONG" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -120,6 +125,7 @@ services:
       - zookeeper_logs:/var/lib/zookeeper/log
     networks:
       - ecommerce-network
+    restart: unless-stopped
     healthcheck:
       test: [ "CMD", "nc", "-z", "localhost", "2181" ]
       interval: 10s
@@ -136,6 +142,9 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # Two listeners on purpose: containers must connect via kafka:29092, while tools on the
+      # host use localhost:9092. Using 9092 from inside the network fails, because the broker
+      # advertises it as "localhost" which resolves to the *client* container.
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
@@ -150,18 +159,20 @@ services:
       - kafka_data:/var/lib/kafka/data
     networks:
       - ecommerce-network
+    restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:9092" ]
+      test: [ "CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092" ]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 10
 
-  # ==================== Kafka UI (Optional - for monitoring) ====================
+  # ==================== Kafka UI (monitoring) ====================
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: ecommerce-kafka-ui
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
     environment:
       KAFKA_CLUSTERS_0_NAME: ecommerce
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
@@ -170,25 +181,27 @@ services:
       - "8080:8080"
     networks:
       - ecommerce-network
+    restart: unless-stopped
 
-  # ==================== Prometheus (Optional - for monitoring) ====================
+  # ==================== Prometheus ====================
   prometheus:
     image: prom/prometheus:v2.53.1
     container_name: ecommerce-prometheus
     ports:
       - "9090:9090"
     volumes:
-      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     networks:
       - ecommerce-network
+    restart: unless-stopped
 
-  # ==================== Grafana (Optional - for monitoring) ====================
+  # ==================== Grafana ====================
   grafana:
     image: grafana/grafana:11.1.4
     container_name: ecommerce-grafana
     environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_USERS_AUTO_ASSIGN_ORG: "true"
       GF_USERS_AUTO_ASSIGN_ORG_ROLE: "Viewer"
@@ -198,14 +211,11 @@ services:
       - ./infra/grafana/provisioning:/etc/grafana/provisioning
     networks:
       - ecommerce-network
+    restart: unless-stopped
 
 volumes:
   postgres_data:
     driver: local
-#  pgadmin_data:
-#    driver: local
-#  mongodb_data:
-#    driver: local
   redis_data:
     driver: local
   zookeeper_data:

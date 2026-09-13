@@ -1,0 +1,193 @@
+# Production stack: pulls published images from Docker Hub instead of building from source.
+#
+#   docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml pull
+#   docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Two deliberate differences from docker-compose.app.yml:
+#
+#  1. No `build:` section - the deployment target never needs a JDK, Maven or the source tree.
+#  2. Business services publish NO host ports. Only the gateway is reachable from outside, so a
+#     misconfigured firewall cannot expose order-service or the database-backed APIs directly.
+#     Services still reach each other over the internal ecommerce-network by container name.
+
+services:
+  config-service:
+    image: ${IMAGE_REPO:-ziadabdelnaby/amazo-ecommerce}:config-service-${IMAGE_TAG:-latest}
+    container_name: ecommerce-config-service
+    env_file:
+      - ${ENV_FILE:-.env.prod}
+    expose:
+      - "8888"
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  discovery-service:
+    image: ${IMAGE_REPO:-ziadabdelnaby/amazo-ecommerce}:discovery-service-${IMAGE_TAG:-latest}
+    container_name: ecommerce-discovery-service
+    depends_on:
+      config-service:
+        condition: service_healthy
+    env_file:
+      - ${ENV_FILE:-.env.prod}
+    environment:
+      EUREKA_INSTANCE_HOSTNAME: discovery-service
+    expose:
+      - "8761"
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  customer-service:
+    image: ${IMAGE_REPO:-ziadabdelnaby/amazo-ecommerce}:customer-service-${IMAGE_TAG:-latest}
+    container_name: ecommerce-customer-service
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ${ENV_FILE:-.env.prod}
+    environment:
+      EUREKA_INSTANCE_HOSTNAME: customer-service
+    expose:
+      - "9001"
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  inventory-service:
+    image: ${IMAGE_REPO:-ziadabdelnaby/amazo-ecommerce}:inventory-service-${IMAGE_TAG:-latest}
+    container_name: ecommerce-inventory-service
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ${ENV_FILE:-.env.prod}
+    environment:
+      EUREKA_INSTANCE_HOSTNAME: inventory-service
+    expose:
+      - "9002"
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  payment-service:
+    image: ${IMAGE_REPO:-ziadabdelnaby/amazo-ecommerce}:payment-service-${IMAGE_TAG:-latest}
+    container_name: ecommerce-payment-service
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    env_file:
+      - ${ENV_FILE:-.env.prod}
+    environment:
+      EUREKA_INSTANCE_HOSTNAME: payment-service
+    expose:
+      - "9004"
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  order-service:
+    image: ${IMAGE_REPO:-ziadabdelnaby/amazo-ecommerce}:order-service-${IMAGE_TAG:-latest}
+    container_name: ecommerce-order-service
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      inventory-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+    env_file:
+      - ${ENV_FILE:-.env.prod}
+    environment:
+      EUREKA_INSTANCE_HOSTNAME: order-service
+    expose:
+      - "9003"
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  notification-service:
+    image: ${IMAGE_REPO:-ziadabdelnaby/amazo-ecommerce}:notification-service-${IMAGE_TAG:-latest}
+    container_name: ecommerce-notification-service
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    env_file:
+      - ${ENV_FILE:-.env.prod}
+    environment:
+      EUREKA_INSTANCE_HOSTNAME: notification-service
+    expose:
+      - "9005"
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  # The only externally reachable application container.
+  gateway-service:
+    image: ${IMAGE_REPO:-ziadabdelnaby/amazo-ecommerce}:gateway-service-${IMAGE_TAG:-latest}
+    container_name: ecommerce-gateway-service
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+    env_file:
+      - ${ENV_FILE:-.env.prod}
+    environment:
+      EUREKA_INSTANCE_HOSTNAME: gateway-service
+    ports:
+      - "${GATEWAY_PUBLIC_PORT:-9080}:9080"
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+

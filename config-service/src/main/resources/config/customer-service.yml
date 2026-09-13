@@ -1,12 +1,12 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5434/user_db
-    username: postgres
-    password: rootroot
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5434}/${CUSTOMER_DB_NAME:user_db}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:rootroot}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 5
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
       idle-timeout: 30000
       max-lifetime: 1200000
       connection-timeout: 20000
@@ -19,20 +19,29 @@ spring:
     enabled: true
     baseline-description: "init"
     baseline-version: 0
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:rootroot}
+      timeout: 2s
+
 application:
+  cache:
+    enabled: ${CACHE_ENABLED:true}
   security:
     enabled: true
     jwt:
-      secret: I_gu6p0FVNHP_Hhjt0cHXF-eFwYGB8ph1xwUOKaBYljDfsXnHpfYAYgaRC8msRTc
-      issuer: ecommerce-platform
-      access-token-ttl: 15m
-      refresh-token-ttl: 30d
+      # No default: the platform must refuse to start rather than sign tokens with a known key.
+      secret: ${JWT_SECRET}
+      issuer: ${JWT_ISSUER:ecommerce-platform}
+      access-token-ttl: ${JWT_ACCESS_TTL:15m}
+      refresh-token-ttl: ${JWT_REFRESH_TTL:30d}
+    login:
+      max-attempts: ${LOGIN_MAX_ATTEMPTS:5}
+      lockout-window: ${LOGIN_LOCKOUT_WINDOW:15m}
+
 server:
-  port: 9001
+  port: ${SERVER_PORT:9001}
   servlet:
     context-path: /api
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,prometheus

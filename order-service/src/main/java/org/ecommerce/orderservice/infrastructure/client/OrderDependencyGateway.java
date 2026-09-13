@@ -7,6 +7,7 @@ import org.ecommerce.orderservice.infrastructure.client.dto.*;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Component
@@ -24,6 +25,24 @@ public class OrderDependencyGateway {
             log.warn("Checking Customer Failed for Customer Id {}", customerId, ex);
         }
         return false;
+    }
+
+    /**
+     * Fetches the customer so the order can snapshot their email address.
+     *
+     * <p>The email is embedded in every emitted order event, which lets notification-service work
+     * purely from the event payload instead of calling customer-service from a Kafka consumer
+     * thread where no caller token is available to relay.</p>
+     *
+     * @return the customer, or empty when the lookup fails; order creation must not depend on it
+     */
+    public Optional<CustomerResponse> findCustomer(String customerId) {
+        try {
+            return Optional.ofNullable(customerClient.findById(customerId));
+        } catch (Exception ex) {
+            reserveCustomerFallback(customerId, ex);
+            return Optional.empty();
+        }
     }
 
     public ReserveInventoryResponse reserveInventory(Order order) {
@@ -48,7 +67,8 @@ public class OrderDependencyGateway {
                     order.getId(),
                     order.getUserId(),
                     order.getTotalAmount(),
-                    order.getCurrency()
+                    order.getCurrency(),
+                    order.getCustomerEmail()
             ));
         } catch (Exception ex) {
             return initiatePaymentFallback(order, ex);

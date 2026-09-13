@@ -11,7 +11,13 @@ public record InitiatePaymentRequest(
         @NotNull Long orderId,
         @NotBlank String userId,
         @NotNull @DecimalMin("0.01") BigDecimal amount,
-        @NotBlank @Pattern(regexp = "^[A-Z]{3}$") String currency
+        @NotBlank @Pattern(regexp = "^[A-Z]{3}$") String currency,
+
+        /**
+         * Recipient address carried through from the order so payment events stay self-contained;
+         * notification-service consumes them on a Kafka thread with no token to look it up.
+         */
+        String customerEmail
 ) {
 }
 

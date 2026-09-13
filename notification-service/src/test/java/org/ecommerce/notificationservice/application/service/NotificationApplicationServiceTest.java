@@ -1,7 +1,6 @@
 package org.ecommerce.notificationservice.application.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.ecommerce.notificationservice.application.port.out.CustomerContactPort;
 import org.ecommerce.notificationservice.application.port.out.EmailSenderPort;
 import org.ecommerce.notificationservice.application.port.out.NotificationEventPublisherPort;
 import org.ecommerce.notificationservice.domain.model.Notification;
@@ -47,8 +46,6 @@ class NotificationApplicationServiceTest {
     @Mock
     private EmailSenderPort emailSenderPort;
     @Mock
-    private CustomerContactPort customerContactPort;
-    @Mock
     private NotificationEventPublisherPort eventPublisherPort;
 
     private NotificationApplicationService service;
@@ -65,7 +62,6 @@ class NotificationApplicationServiceTest {
                 new ObjectMapper(),
                 new TemplateRenderer(),
                 emailSenderPort,
-                customerContactPort,
                 eventPublisherPort
         );
     }
@@ -84,7 +80,6 @@ class NotificationApplicationServiceTest {
         when(eventRepository.existsByEventId("evt-2")).thenReturn(false);
         when(eventRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(preferenceRepository.findByUserId(11L)).thenReturn(Optional.of(enabledPreference(11L)));
-        when(customerContactPort.resolveEmailByUserId(11L)).thenReturn(Optional.of("user11@example.com"));
         when(templateRepository.findByNameAndTypeAndActiveTrue("order_confirmation", NotificationType.EMAIL)).thenReturn(Optional.of(template()));
         when(notificationRepository.save(any(Notification.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -93,7 +88,7 @@ class NotificationApplicationServiceTest {
                 "\"eventType\":\"OrderCreated\"," +
                 "\"aggregateId\":\"101\"," +
                 "\"aggregateType\":\"Order\"," +
-                "\"payload\":{\"userId\":11,\"orderNumber\":\"ORD-101\",\"amount\":29.9}" +
+                "\"payload\":{\"userId\":11,\"email\":\"user11@example.com\",\"orderNumber\":\"ORD-101\",\"amount\":29.9}" +
                 "}");
 
         verify(emailSenderPort, times(1)).send(any());
@@ -134,6 +129,3 @@ class NotificationApplicationServiceTest {
         return template;
     }
 }
-
-
-

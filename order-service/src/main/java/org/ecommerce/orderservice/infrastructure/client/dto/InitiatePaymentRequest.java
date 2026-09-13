@@ -6,7 +6,8 @@ public record InitiatePaymentRequest(
         Long orderId,
         String userId,
         BigDecimal amount,
-        String currency
+        String currency,
+        String customerEmail
 ) {
 }
 

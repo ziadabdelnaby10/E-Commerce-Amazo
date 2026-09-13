@@ -26,7 +26,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class GatewayServiceConfigurationEndpointTest {
 
     private static final Pattern ROUTE_ID_KEY = Pattern.compile("spring\\.cloud\\.gateway\\.server\\.webflux\\.routes\\[\\d+].id");
-    private static final Pattern ROUTE_FILTER_KEY = Pattern.compile("spring\\.cloud\\.gateway\\.server\\.webflux\\.routes\\[\\d+].filters\\[\\d+].*");
+    private static final Pattern CIRCUIT_BREAKER_NAME_KEY =
+            Pattern.compile("spring\\.cloud\\.gateway\\.server\\.webflux\\.routes\\[\\d+].filters\\[\\d+].args.name");
 
     @LocalServerPort
     private int port;
@@ -48,7 +49,7 @@ class GatewayServiceConfigurationEndpointTest {
                         "notification-service"
                 );
         assertThat(properties)
-                .containsEntry("server.port", "9080")
+                .containsEntry("server.port", "${SERVER_PORT:9080}")
                 .containsEntry("spring.cloud.gateway.server.webflux.routes[0].uri", "lb://customer-service")
                 .containsEntry("spring.cloud.gateway.server.webflux.routes[1].uri", "lb://inventory-service")
                 .containsEntry("spring.cloud.gateway.server.webflux.routes[2].uri", "lb://order-service")
@@ -56,9 +57,22 @@ class GatewayServiceConfigurationEndpointTest {
                 .containsEntry("spring.cloud.gateway.server.webflux.routes[4].uri", "lb://customer-service")
                 .containsEntry("spring.cloud.gateway.server.webflux.routes[5].uri", "lb://notification-service")
                 .containsEntry("application.security.enabled", "true")
-                .containsEntry("application.security.jwt.secret", "I_gu6p0FVNHP_Hhjt0cHXF-eFwYGB8ph1xwUOKaBYljDfsXnHpfYAYgaRC8msRTc")
-                .containsEntry("application.security.jwt.issuer", "ecommerce-platform")
+                .containsEntry("application.security.jwt.issuer", "${JWT_ISSUER:ecommerce-platform}")
                 .containsEntry("management.endpoints.web.exposure.include", "health,info,prometheus,gateway");
+    }
+
+    /**
+     * The signing key must never be a literal in a committed file: anyone holding it can mint a token
+     * for any user with any role. The config server serves values verbatim, so a committed secret
+     * would show up here as its own plaintext.
+     */
+    @Test
+    void shouldNotServeAHardcodedJwtSigningSecret() {
+        Map<String, String> properties = readGatewayServiceProperties();
+
+        assertThat(properties.get("application.security.jwt.secret"))
+                .as("JWT secret must be supplied by the environment, with no fallback default")
+                .isEqualTo("${JWT_SECRET}");
     }
 
     @Test
@@ -78,17 +92,37 @@ class GatewayServiceConfigurationEndpointTest {
     void shouldMergeSharedApplicationDefaultsIntoGatewayServiceConfiguration() {
         Map<String, String> properties = readGatewayServiceProperties();
 
+        // Infrastructure coordinates are environment-driven with a localhost fallback, so the same
+        // artifact runs on a laptop and in Docker without a rebuild.
         assertThat(properties)
-                .containsEntry("eureka.client.service-url.defaultZone", "http://localhost:8761/eureka")
-                .containsEntry("eureka.instance.hostname", "localhost")
+                .containsEntry("eureka.client.service-url.defaultZone", "${EUREKA_SERVER_URL:http://localhost:8761/eureka}")
+                .containsEntry("eureka.instance.hostname", "${EUREKA_INSTANCE_HOSTNAME:localhost}")
                 .containsEntry("spring.cloud.config.override-system-properties", "false");
     }
 
+    /**
+     * The circuit breakers were previously commented out, which silently disabled every fallback the
+     * gateway declares. Assert they are active so that regression cannot happen unnoticed.
+     */
     @Test
-    void shouldNotExposeCommentedOutGatewayFiltersAsActiveConfiguration() {
+    void shouldApplyCircuitBreakerFiltersToDownstreamRoutes() {
         Map<String, String> properties = readGatewayServiceProperties();
 
-        assertThat(extractValues(properties, ROUTE_FILTER_KEY)).isEmpty();
+        assertThat(extractValues(properties, CIRCUIT_BREAKER_NAME_KEY))
+                .containsExactlyInAnyOrder(
+                        "inventoryServiceCircuitBreaker",
+                        "orderServiceCircuitBreaker",
+                        "paymentServiceCircuitBreaker",
+                        "customerServiceCircuitBreaker"
+                );
+
+        // Each breaker needs a matching resilience4j instance, otherwise it silently falls back to
+        // the library defaults instead of the tuned shared config.
+        assertThat(properties)
+                .containsEntry("resilience4j.circuitbreaker.instances.inventoryServiceCircuitBreaker.baseConfig", "default")
+                .containsEntry("resilience4j.circuitbreaker.instances.orderServiceCircuitBreaker.baseConfig", "default")
+                .containsEntry("resilience4j.circuitbreaker.instances.paymentServiceCircuitBreaker.baseConfig", "default")
+                .containsEntry("resilience4j.circuitbreaker.instances.customerServiceCircuitBreaker.baseConfig", "default");
     }
 
     private Map<String, String> readGatewayServiceProperties() {

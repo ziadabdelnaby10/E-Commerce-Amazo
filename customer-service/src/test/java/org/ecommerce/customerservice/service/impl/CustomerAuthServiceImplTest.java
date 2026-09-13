@@ -53,6 +53,9 @@ class CustomerAuthServiceImplTest {
     @Mock
     private JwtSecurityProperties jwtSecurityProperties;
 
+    @Mock
+    private LoginAttemptService loginAttemptService;
+
     @InjectMocks
     private CustomerAuthServiceImpl authService;
 

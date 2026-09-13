@@ -1,0 +1,180 @@
+# Application services, built from local source.
+#
+#   docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.app.yml up -d --build
+#
+# Startup order is enforced with `condition: service_healthy` rather than plain `depends_on`,
+# because a container being *started* says nothing about whether it can serve traffic. Without
+# this, business services boot before config-service can answer and die on a missing datasource
+# URL. Order is: infrastructure -> config -> discovery -> business services -> gateway.
+
+services:
+  config-service:
+    build:
+      context: ./config-service
+    image: ${IMAGE_REPO:-ziadabdelnaby/amazo-ecommerce}:config-service-local
+    container_name: ecommerce-config-service
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=75}
+    ports:
+      - "8888:8888"
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+  discovery-service:
+    build:
+      context: ./discovery-service
+    image: ${IMAGE_REPO:-ziadabdelnaby/amazo-ecommerce}:discovery-service-local
+    container_name: ecommerce-discovery-service
+    depends_on:
+      config-service:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      CONFIG_SERVER_URL: ${CONFIG_SERVER_URL}
+      # Eureka advertises this hostname to clients, so it must be the compose service name.
+      EUREKA_INSTANCE_HOSTNAME: discovery-service
+      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=75}
+    ports:
+      - "8761:8761"
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+  customer-service:
+    build:
+      context: ./customer-service
+    image: ${IMAGE_REPO:-ziadabdelnaby/amazo-ecommerce}:customer-service-local
+    container_name: ecommerce-customer-service
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ${ENV_FILE:-.env.dev}
+    environment:
+      EUREKA_INSTANCE_HOSTNAME: customer-service
+    ports:
+      - "9001:9001"
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+  inventory-service:
+    build:
+      context: ./inventory-service
+    image: ${IMAGE_REPO:-ziadabdelnaby/amazo-ecommerce}:inventory-service-local
+    container_name: ecommerce-inventory-service
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ${ENV_FILE:-.env.dev}
+    environment:
+      EUREKA_INSTANCE_HOSTNAME: inventory-service
+    ports:
+      - "9002:9002"
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+  payment-service:
+    build:
+      context: ./payment-service
+    image: ${IMAGE_REPO:-ziadabdelnaby/amazo-ecommerce}:payment-service-local
+    container_name: ecommerce-payment-service
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    env_file:
+      - ${ENV_FILE:-.env.dev}
+    environment:
+      EUREKA_INSTANCE_HOSTNAME: payment-service
+    ports:
+      - "9004:9004"
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+  order-service:
+    build:
+      context: ./order-service
+    image: ${IMAGE_REPO:-ziadabdelnaby/amazo-ecommerce}:order-service-local
+    container_name: ecommerce-order-service
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      # Order calls both synchronously during checkout, so waiting for them avoids a burst of
+      # circuit-breaker fallbacks on every cold start.
+      inventory-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+    env_file:
+      - ${ENV_FILE:-.env.dev}
+    environment:
+      EUREKA_INSTANCE_HOSTNAME: order-service
+    ports:
+      - "9003:9003"
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+  notification-service:
+    build:
+      context: ./notification-service
+    image: ${IMAGE_REPO:-ziadabdelnaby/amazo-ecommerce}:notification-service-local
+    container_name: ecommerce-notification-service
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      mail-dev:
+        condition: service_started
+    env_file:
+      - ${ENV_FILE:-.env.dev}
+    environment:
+      EUREKA_INSTANCE_HOSTNAME: notification-service
+    ports:
+      - "9005:9005"
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+  gateway-service:
+    build:
+      context: ./gateway-service
+    image: ${IMAGE_REPO:-ziadabdelnaby/amazo-ecommerce}:gateway-service-local
+    container_name: ecommerce-gateway-service
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+    env_file:
+      - ${ENV_FILE:-.env.dev}
+    environment:
+      EUREKA_INSTANCE_HOSTNAME: gateway-service
+    ports:
+      - "9080:9080"
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+

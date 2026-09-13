@@ -1,12 +1,12 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5434/payment_db
-    username: postgres
-    password: rootroot
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5434}/${PAYMENT_DB_NAME:payment_db}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:rootroot}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 5
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
       idle-timeout: 30000
       max-lifetime: 1200000
       connection-timeout: 20000
@@ -26,7 +26,7 @@ spring:
     baseline-description: "init"
     baseline-version: 0
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       acks: all
       retries: 3
@@ -34,7 +34,7 @@ spring:
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
 server:
-  port: 9004
+  port: ${SERVER_PORT:9004}
   servlet:
     context-path: /api
 
@@ -46,6 +46,12 @@ application:
   security:
     enabled: true
     jwt:
-      secret: I_gu6p0FVNHP_Hhjt0cHXF-eFwYGB8ph1xwUOKaBYljDfsXnHpfYAYgaRC8msRTc
-      issuer: ecommerce-platform
-      access-token-ttl: 15m
+      secret: ${JWT_SECRET}
+      issuer: ${JWT_ISSUER:ecommerce-platform}
+      access-token-ttl: ${JWT_ACCESS_TTL:15m}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus

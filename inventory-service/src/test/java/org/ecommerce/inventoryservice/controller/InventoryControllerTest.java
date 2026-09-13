@@ -12,6 +12,7 @@ import org.ecommerce.inventoryservice.model.response.ReserveInventoryResponse;
 import org.ecommerce.inventoryservice.model.response.SimpleStockLevelResponse;
 import org.ecommerce.inventoryservice.service.InventoryService;
 import org.ecommerce.inventoryservice.service.ProductService;
+import org.ecommerce.inventoryservice.service.StockReservationCoordinator;
 import org.ecommerce.inventoryservice.service.StockService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,12 +48,16 @@ class InventoryControllerTest {
 
     private StockService stockService;
 
+    private StockReservationCoordinator stockReservationCoordinator;
+
     @BeforeEach
     void setUp() {
         inventoryService = mock(InventoryService.class);
         productService = mock(ProductService.class);
         stockService = mock(StockService.class);
-        mockMvc = MockMvcBuilders.standaloneSetup(new InventoryController(inventoryService, productService, stockService))
+        stockReservationCoordinator = mock(StockReservationCoordinator.class);
+        mockMvc = MockMvcBuilders.standaloneSetup(
+                        new InventoryController(inventoryService, productService, stockService, stockReservationCoordinator))
                 .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
                 .setControllerAdvice(new ApiExceptionHandler())
                 .build();
@@ -145,7 +150,7 @@ class InventoryControllerTest {
                 101L,
                 List.of(new ReserveInventoryItemRequest(1L, 2))
         );
-        given(stockService.reserveInventory(any(ReserveInventoryRequest.class)))
+        given(stockReservationCoordinator.reserveInventory(any(ReserveInventoryRequest.class)))
                 .willReturn(ReserveInventoryResponse.success());
 
         mockMvc.perform(post("/v1/inventory/reservations")

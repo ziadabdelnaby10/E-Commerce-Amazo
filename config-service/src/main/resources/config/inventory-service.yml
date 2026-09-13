@@ -1,12 +1,12 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5434/inventory_db
-    username: postgres
-    password: rootroot
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5434}/${INVENTORY_DB_NAME:inventory_db}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:rootroot}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 5
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
       idle-timeout: 30000
       max-lifetime: 1200000
       connection-timeout: 20000
@@ -19,16 +19,24 @@ spring:
     enabled: true
     baseline-description: "init"
     baseline-version: 0
+  data:
+    redis:
+      # Backs the distributed stock-reservation lock; without it concurrent reservations
+      # on multiple replicas can oversell a product.
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:rootroot}
+      timeout: 2s
 
 application:
   security:
     enabled: true
     jwt:
-      secret: I_gu6p0FVNHP_Hhjt0cHXF-eFwYGB8ph1xwUOKaBYljDfsXnHpfYAYgaRC8msRTc
-      issuer: ecommerce-platform
+      secret: ${JWT_SECRET}
+      issuer: ${JWT_ISSUER:ecommerce-platform}
 
 server:
-  port: 9002
+  port: ${SERVER_PORT:9002}
   servlet:
     context-path: /api/
 
@@ -39,6 +47,7 @@ springdoc:
     path: /swagger-ui.html
     tags-sorter: alpha
     operations-sorter: alpha
+
 management:
   endpoints:
     web:

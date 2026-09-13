@@ -1,0 +1,25 @@
+# Keep the build context small and deterministic.
+#
+# target/ must never be copied in: the image builds the jar itself, and shipping a stale
+# locally-built jar into the context both bloats the context and invalidates the cache
+# on every local `mvn package`.
+target/
+
+# The Maven wrapper is unused inside the image - the build stage uses the maven base image.
+mvnw
+mvnw.cmd
+.mvn/
+
+# Never bake secrets or local overrides into an image layer.
+.env
+.env.*
+
+# Noise
+.git/
+.gitignore
+.idea/
+*.iml
+Dockerfile
+.dockerignore
+README.md
+HELP.md

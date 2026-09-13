@@ -1,11 +1,31 @@
+# Shared defaults applied to every service that fetches config from config-service.
+#
+# Every infrastructure coordinate is an environment variable with a localhost default, so the exact
+# same artifact runs unchanged on a developer machine (defaults apply) and inside Docker (compose
+# supplies container hostnames). `override-system-properties: false` keeps those environment
+# variables ranked above the config server, which is what makes the override actually take effect.
+
 eureka:
   instance:
-    hostname: localhost
+    prefer-ip-address: ${EUREKA_PREFER_IP:false}
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka}
 
 spring:
   cloud:
     config:
       override-system-properties: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      # Container orchestrators need liveness/readiness probes to gate startup ordering.
+      probes:
+        enabled: true
+      show-details: when-authorized
