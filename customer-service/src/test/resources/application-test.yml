@@ -7,7 +7,7 @@ spring:
     discovery:
       enabled: false
   main:
-    web-application-type: reactive
+    web-application-type: servlet
 
 eureka:
   client:
