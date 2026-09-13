@@ -20,7 +20,7 @@
     <dependencies>
         <dependency>
             <groupId>com.julien-dubois.bootui</groupId>
-            <artifactId>bootui-spring-boot-starter</artifactId>
+            <artifactId>bootui-spring-boot-starter-reactive</artifactId>
             <version>1.15.0</version>
         </dependency>
         <dependency>
