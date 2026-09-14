@@ -5,6 +5,8 @@
 # and only here.
 
 spring:
+  config:
+    import: optional:file:.env[.properties]
   jpa:
     show-sql: true
     properties:

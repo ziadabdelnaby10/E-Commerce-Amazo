@@ -1,6 +1,7 @@
 package org.ecommerce.customerservice.service.impl;
 
 import lombok.extern.slf4j.Slf4j;
+import org.ecommerce.customerservice.exception.MaxAttemptsException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
@@ -53,8 +54,8 @@ public class LoginAttemptService {
             return;
         }
         if (attempts != null && Integer.parseInt(attempts) >= maxAttempts) {
-            throw new ResponseStatusException(
-                    HttpStatus.TOO_MANY_REQUESTS,
+            log.error("Too many failed login attempts {} for {}", attempts, email);
+            throw new MaxAttemptsException(
                     "Too many failed login attempts; try again later");
         }
     }

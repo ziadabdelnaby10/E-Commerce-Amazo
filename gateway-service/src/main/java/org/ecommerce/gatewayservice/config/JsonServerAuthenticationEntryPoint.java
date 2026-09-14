@@ -58,7 +58,7 @@ public class JsonServerAuthenticationEntryPoint implements ServerAuthenticationE
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("errorCode", status.value());
             body.put("errorDescription", message);
-            body.put("time", Instant.now().toString());
+            body.put("time", Instant.now());
 
             byte[] bytes;
             try {

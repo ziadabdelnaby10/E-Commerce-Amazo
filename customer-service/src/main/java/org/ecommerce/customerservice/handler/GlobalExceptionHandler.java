@@ -1,12 +1,6 @@
 package org.ecommerce.customerservice.handler;
 
-import org.ecommerce.customerservice.exception.CustomerNotFoundException;
-import org.ecommerce.customerservice.exception.DefaultRoleMissingException;
-import org.ecommerce.customerservice.exception.DuplicatePermissionException;
-import org.ecommerce.customerservice.exception.DuplicateEmailException;
-import org.ecommerce.customerservice.exception.DuplicateRoleException;
-import org.ecommerce.customerservice.exception.PermissionNotFoundException;
-import org.ecommerce.customerservice.exception.RoleNotFoundException;
+import org.ecommerce.customerservice.exception.*;
 import org.ecommerce.customerservice.response.GeneralErrorResponse;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.http.HttpStatus;
@@ -27,6 +21,24 @@ public class GlobalExceptionHandler {
     public ResponseEntity<GeneralErrorResponse> handleCustomerNotFoundException(CustomerNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(GeneralErrorResponse.of(HttpStatus.NOT_FOUND.value(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(MaxAttemptsException.class)
+    public ResponseEntity<GeneralErrorResponse> handleMaxAttemptsException(MaxAttemptsException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(GeneralErrorResponse.of(HttpStatus.TOO_MANY_REQUESTS.value(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidUsernameOrPassword.class)
+    public ResponseEntity<GeneralErrorResponse> handleInvalidUsernameOrPassword(InvalidUsernameOrPassword ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(GeneralErrorResponse.of(HttpStatus.UNAUTHORIZED.value(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidRefreshTokenException.class)
+    public ResponseEntity<GeneralErrorResponse> handleInvalidRefreshTokenException(InvalidRefreshTokenException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(GeneralErrorResponse.of(HttpStatus.UNAUTHORIZED.value(), ex.getMessage()));
     }
 
     @ExceptionHandler(DuplicateEmailException.class)

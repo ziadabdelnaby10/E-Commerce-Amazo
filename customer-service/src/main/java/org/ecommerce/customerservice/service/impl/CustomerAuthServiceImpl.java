@@ -6,6 +6,8 @@ import org.ecommerce.customerservice.entity.Customer;
 import org.ecommerce.customerservice.entity.RefreshToken;
 import org.ecommerce.customerservice.entity.Permission;
 import org.ecommerce.customerservice.entity.Role;
+import org.ecommerce.customerservice.exception.InvalidRefreshTokenException;
+import org.ecommerce.customerservice.exception.InvalidUsernameOrPassword;
 import org.ecommerce.customerservice.repository.CustomerRepository;
 import org.ecommerce.customerservice.repository.RefreshTokenRepository;
 import org.ecommerce.customerservice.request.LoginRequest;
@@ -143,12 +145,12 @@ public class CustomerAuthServiceImpl implements CustomerAuthService {
         }
     }
 
-    private ResponseStatusException unauthorized() {
-        return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
+    private InvalidUsernameOrPassword unauthorized() {
+        return new InvalidUsernameOrPassword("Invalid email or password");
     }
 
-    private ResponseStatusException invalidRefreshToken() {
-        return new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
+    private InvalidRefreshTokenException invalidRefreshToken() {
+        return new InvalidRefreshTokenException("Invalid refresh token");
     }
 
     private record IssuedRefreshToken(String tokenValue, Instant expiresAt) {

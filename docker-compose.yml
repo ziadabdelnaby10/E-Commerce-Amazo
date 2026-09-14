@@ -2,7 +2,7 @@ services:
   # ==================== PostgreSQL ====================
   postgres:
     image: postgres:17-alpine
-    container_name: ecommerce-postgres
+    container_name: postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rootroot}
@@ -80,7 +80,7 @@ services:
 
   # ==================== Mail ====================
   mail-dev:
-    container_name: ecommerce-mail-dev
+    container_name: mail-dev
     image: maildev/maildev:2.0.5
     ports:
       - "1080:1080" # Web interface
@@ -93,7 +93,7 @@ services:
   # Backs the inventory distributed lock, the customer cache and login throttling.
   redis:
     image: redis:7-alpine
-    container_name: ecommerce-redis
+    container_name: redis
     command: redis-server --requirepass ${REDIS_PASSWORD:-rootroot}
     ports:
       - "6379:6379"
@@ -112,7 +112,7 @@ services:
   # ==================== Zookeeper (for Kafka) ====================
   zookeeper:
     image: confluentinc/cp-zookeeper:7.7.0
-    container_name: ecommerce-zookeeper
+    container_name: zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -135,7 +135,7 @@ services:
   # ==================== Kafka ====================
   kafka:
     image: confluentinc/cp-kafka:7.7.0
-    container_name: ecommerce-kafka
+    container_name: kafka
     depends_on:
       zookeeper:
         condition: service_healthy
@@ -169,7 +169,7 @@ services:
   # ==================== Kafka UI (monitoring) ====================
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
-    container_name: ecommerce-kafka-ui
+    container_name: kafka-ui
     depends_on:
       kafka:
         condition: service_healthy
@@ -186,7 +186,7 @@ services:
   # ==================== Prometheus ====================
   prometheus:
     image: prom/prometheus:v2.53.1
-    container_name: ecommerce-prometheus
+    container_name: prometheus
     ports:
       - "9090:9090"
     volumes:
@@ -198,7 +198,7 @@ services:
   # ==================== Grafana ====================
   grafana:
     image: grafana/grafana:11.1.4
-    container_name: ecommerce-grafana
+    container_name: grafana
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
