@@ -1,5 +1,6 @@
 package org.ecommerce.orderservice.infrastructure.client;
 
+import org.ecommerce.orderservice.domain.dto.response.GeneralResponse;
 import org.ecommerce.orderservice.infrastructure.client.dto.ReleaseInventoryRequest;
 import org.ecommerce.orderservice.infrastructure.client.dto.ReserveInventoryRequest;
 import org.ecommerce.orderservice.infrastructure.client.dto.ReserveInventoryResponse;
@@ -15,9 +16,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 public interface InventoryClient {
 
     @PostMapping("/reservations")
-    ReserveInventoryResponse reserveInventory(@RequestBody ReserveInventoryRequest request);
+    GeneralResponse<ReserveInventoryResponse> reserveInventory(@RequestBody ReserveInventoryRequest request);
 
     @PostMapping("/reservations/release")
-    void releaseInventory(@RequestBody ReleaseInventoryRequest request);
+    GeneralResponse<Void> releaseInventory(@RequestBody ReleaseInventoryRequest request);
 }
 

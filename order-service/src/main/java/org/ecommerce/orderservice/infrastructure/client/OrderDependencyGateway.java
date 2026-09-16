@@ -2,6 +2,7 @@ package org.ecommerce.orderservice.infrastructure.client;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.ecommerce.orderservice.domain.dto.response.GeneralResponse;
 import org.ecommerce.orderservice.domain.model.Order;
 import org.ecommerce.orderservice.infrastructure.client.dto.*;
 import org.springframework.stereotype.Component;
@@ -20,7 +21,9 @@ public class OrderDependencyGateway {
 
     public Boolean checkCustomerExist(String customerId) {
         try {
-            return customerClient.existsById(customerId);
+            log.info("Checking Customer Exist for Customer Id {}", customerId);
+            log.info("Customer Client: {}", customerClient.existsById(customerId));
+            return customerClient.existsById(customerId).data();
         } catch (Exception ex) {
             log.warn("Checking Customer Failed for Customer Id {}", customerId, ex);
         }
@@ -38,7 +41,7 @@ public class OrderDependencyGateway {
      */
     public Optional<CustomerResponse> findCustomer(String customerId) {
         try {
-            return Optional.ofNullable(customerClient.findById(customerId));
+            return Optional.ofNullable(customerClient.findById(customerId).data());
         } catch (Exception ex) {
             reserveCustomerFallback(customerId, ex);
             return Optional.empty();
@@ -47,7 +50,12 @@ public class OrderDependencyGateway {
 
     public ReserveInventoryResponse reserveInventory(Order order) {
         try {
-            return inventoryClient.reserveInventory(new ReserveInventoryRequest(order.getId(), toInventoryItems(order)));
+            GeneralResponse<ReserveInventoryResponse> response = inventoryClient.reserveInventory(new ReserveInventoryRequest(order.getId(), toInventoryItems(order)));
+            if (response.statusCode() != 200) {
+                log.warn("Inventory reservation failed for order {}: {}", order.getId(), response.data());
+                return null;
+            }
+            return response.data();
         } catch (Exception ex) {
             return reserveInventoryFallback(order, ex);
         }
