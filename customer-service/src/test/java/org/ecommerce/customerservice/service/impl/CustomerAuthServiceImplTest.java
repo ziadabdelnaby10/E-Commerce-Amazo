@@ -4,6 +4,7 @@ import org.ecommerce.customerservice.TestDataFactory;
 import org.ecommerce.customerservice.config.JwtSecurityProperties;
 import org.ecommerce.customerservice.entity.Customer;
 import org.ecommerce.customerservice.entity.RefreshToken;
+import org.ecommerce.customerservice.exception.InvalidRefreshTokenException;
 import org.ecommerce.customerservice.repository.CustomerRepository;
 import org.ecommerce.customerservice.repository.RefreshTokenRepository;
 import org.ecommerce.customerservice.request.LoginRequest;
@@ -138,7 +139,7 @@ class CustomerAuthServiceImplTest {
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> authService.refresh(new RefreshTokenRequest(rawRefreshToken)))
-                .isInstanceOf(ResponseStatusException.class)
+                .isInstanceOf(InvalidRefreshTokenException.class)
                 .hasMessageContaining("Invalid refresh token");
     }
 
