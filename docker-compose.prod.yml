@@ -11,6 +11,221 @@
 #     Services still reach each other over the internal ecommerce-network by container name.
 
 services:
+# ==================== PostgreSQL ====================
+  postgres:
+    image: postgres:17-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rootroot}
+      POSTGRES_DB: postgres
+    ports:
+      # Host port differs from the container port so it does not clash with a locally
+      # installed PostgreSQL. Services inside the network still use 5432.
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  # ==================== PgAdmin ====================
+  #  needed if you can't access the database from your local machine. You can access it at http://localhost:5050
+  #  pgadmin:
+  #    image: dpage/pgadmin4:7.7
+  #    container_name: ecommerce-pgadmin
+  #    environment:
+  #      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin@pgadmin.org}
+  #      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+  #      PGADMIN_CONFIG_SERVER_MODE: "False"
+  #    volumes:
+  #      - pgadmin_data:/var/lib/pgadmin
+  #    ports:
+  #      - "5050:80"
+  #    networks:
+  #      - ecommerce-network
+  #    depends_on:
+  #      - postgres
+  #    restart:
+  #      unless-stopped
+
+  # ==================== MongoDB ====================
+#  mongodb:
+#    image: mongo:7.0.3
+#    container_name: ecommerce-mongodb
+#    environment:
+#      MONGO_INITDB_ROOT_USERNAME: root
+#      MONGO_INITDB_ROOT_PASSWORD: password
+#    ports:
+#      - "27017:27017"
+#    volumes:
+#      - mongodb_data:/data/db
+#    networks:
+#      - ecommerce-network
+#    healthcheck:
+#      test: [ "CMD", "mongo", "--eval", "db.adminCommand('ping')" ]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 5
+
+  # ==================== Mongo Express ====================
+  #  needed if you can't access the database from your local machine. You can access it at http://localhost:8081
+  #  mongo-express:
+  #    image: mongo-express:1.0.0
+  #    container_name: ecommerce-mongo-express
+  #    restart: unless-stopped
+  #    environment:
+  #      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+  #      ME_CONFIG_MONGODB_ADMINPASSWORD: password
+  #      ME_CONFIG_MONGODB_SERVER: mongodb
+  #    ports:
+  #      - "8081:8081"
+  #    networks:
+  #      - ecommerce-network
+  #    depends_on:
+  #      - mongodb
+
+  # ==================== Mail ====================
+  mail-dev:
+    container_name: mail-dev
+    image: maildev/maildev:2.0.5
+    ports:
+      - "1080:1080" # Web interface
+      - "1025:1025" # SMTP server
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+  # ==================== Redis ====================
+  # Backs the inventory distributed lock, the customer cache and login throttling.
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-rootroot}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+    healthcheck:
+      # Must authenticate, otherwise the probe reports healthy while every client is rejected.
+      test: [ "CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-rootroot} ping | grep -q PONG" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== Zookeeper (for Kafka) ====================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.7.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 5
+      ZOOKEEPER_INIT_LIMIT: 5
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_logs:/var/lib/zookeeper/log
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "localhost", "2181" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== Kafka ====================
+  kafka:
+    image: confluentinc/cp-kafka:7.7.0
+    container_name: kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # Two listeners on purpose: containers must connect via kafka:29092, while tools on the
+      # host use localhost:9092. Using 9092 from inside the network fails, because the broker
+      # advertises it as "localhost" which resolves to the *client* container.
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092" ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  # ==================== Kafka UI (monitoring) ====================
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_CLUSTERS_0_NAME: ecommerce
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    ports:
+      - "8080:8080"
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+  # ==================== Prometheus ====================
+  prometheus:
+    image: prom/prometheus:v2.53.1
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+  # ==================== Grafana ====================
+  grafana:
+    image: grafana/grafana:11.1.4
+    container_name: grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_USERS_AUTO_ASSIGN_ORG: "true"
+      GF_USERS_AUTO_ASSIGN_ORG_ROLE: "Viewer"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+
   config-service:
     image: ${IMAGE_REPO:-ziadabdelnaby/amazo-ecommerce}:config-service-${IMAGE_TAG:-latest}
     container_name: ecommerce-config-service
@@ -191,3 +406,18 @@ services:
         limits:
           memory: 768M
 
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  zookeeper_data:
+    driver: local
+  zookeeper_logs:
+    driver: local
+  kafka_data:
+    driver: local
+
+networks:
+  ecommerce-network:
+    driver: bridge
