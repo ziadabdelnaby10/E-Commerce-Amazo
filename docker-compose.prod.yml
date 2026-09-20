@@ -9,6 +9,7 @@
 #  2. Business services publish NO host ports. Only the gateway is reachable from outside, so a
 #     misconfigured firewall cannot expose order-service or the database-backed APIs directly.
 #     Services still reach each other over the internal ecommerce-network by container name.
+# VERY IMPORTANT: create a .env.prod file with the same variables as .env, but with production values. Do not use the development .env file in production.
 
 services:
 # ==================== PostgreSQL ====================
