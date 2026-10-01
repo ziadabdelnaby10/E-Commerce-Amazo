@@ -1,6 +1,7 @@
 package org.ecommerce.customerservice.config;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -33,6 +34,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+/**
+ * Servlet-based Spring Security configuration for customer-service.
+ *
+ * <p>This service both issues JWTs and validates them for protected customer-management
+ * operations. Public access is intentionally limited to registration, login, and a small
+ * operational/documentation surface; every other endpoint requires an authenticated token.</p>
+ */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -49,16 +57,35 @@ public class SecurityConfig {
             "/webjars/**"
     };
 
+    /**
+     * Builds the shared HMAC secret key used for token signing and validation.
+     *
+     * @param properties configured JWT settings
+     * @return secret key for HS256 operations
+     */
     @Bean
     public SecretKey jwtSecretKey(JwtSecurityProperties properties) {
         return new SecretKeySpec(properties.secret().getBytes(StandardCharsets.UTF_8), "HmacSHA256");
     }
 
+    /**
+     * Exposes the JWT encoder used when issuing access tokens after successful login.
+     *
+     * @param jwtSecretKey shared HMAC secret
+     * @return encoder backed by the configured symmetric key
+     */
     @Bean
     public JwtEncoder jwtEncoder(SecretKey jwtSecretKey) {
         return new NimbusJwtEncoder(new ImmutableSecret<>(jwtSecretKey));
     }
 
+    /**
+     * Exposes the JWT decoder used for bearer-token authentication.
+     *
+     * @param jwtSecretKey shared HMAC secret
+     * @param properties configured JWT settings
+     * @return JWT decoder with issuer validation applied when configured
+     */
     @Bean
     public JwtDecoder jwtDecoder(SecretKey jwtSecretKey, JwtSecurityProperties properties) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(jwtSecretKey)
@@ -68,12 +95,23 @@ public class SecurityConfig {
         return decoder;
     }
 
+    /**
+     * Builds the main servlet security filter chain.
+     *
+     * @param http servlet security builder
+     * @param jwtDecoder component used to validate incoming tokens
+     * @param jwtAuthenticationConverter maps token claims to Spring authorities
+     * @param authenticationEntryPoint renders JSON for unauthenticated failures
+     * @param accessDeniedHandler renders JSON for authorization failures
+     * @return configured filter chain
+     * @throws Exception if security configuration fails
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    JwtDecoder jwtDecoder,
                                                    JwtAuthenticationConverter jwtAuthenticationConverter,
                                                    AuthenticationEntryPoint authenticationEntryPoint,
-                                                   AccessDeniedHandler accessDeniedHandler) throws Exception {
+                                                   AccessDeniedHandler accessDeniedHandler) {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -94,6 +132,11 @@ public class SecurityConfig {
                 .build();
     }
 
+    /**
+     * Converts custom role and permission claims into Spring authorities.
+     *
+     * @return converter used by the resource server support
+     */
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
@@ -101,22 +144,36 @@ public class SecurityConfig {
         return converter;
     }
 
+    /** @return JSON authentication entry point used for 401 responses */
     @Bean
     public AuthenticationEntryPoint restAuthenticationEntryPoint() {
         return new RestAuthenticationEntryPoint();
     }
 
+    /** @return JSON access denied handler used for 403 responses */
     @Bean
     public AccessDeniedHandler restAccessDeniedHandler() {
         return new RestAccessDeniedHandler();
     }
 
-    static OAuth2TokenValidator<Jwt> tokenValidator(String issuer) {
+    /**
+     * Builds the token validator with optional issuer verification.
+     *
+     * @param issuer expected issuer value
+     * @return validator used by the JWT decoder
+     */
+    static OAuth2TokenValidator<@NotNull Jwt> tokenValidator(String issuer) {
         return (issuer == null || issuer.isBlank())
                 ? JwtValidators.createDefault()
                 : JwtValidators.createDefaultWithIssuer(issuer);
     }
 
+    /**
+     * Extracts roles and fine-grained permissions from the JWT claims.
+     *
+     * @param jwt validated JWT token
+     * @return combined authority collection understood by Spring Security
+     */
     static Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
         Collection<GrantedAuthority> authorities = new ArrayList<>();
         List<String> roles = jwt.getClaimAsStringList("roles");

@@ -16,10 +16,8 @@ import org.ecommerce.customerservice.response.AuthResponse;
 import org.ecommerce.customerservice.service.CustomerAuthService;
 import org.ecommerce.customerservice.service.JwtTokenService;
 import org.ecommerce.customerservice.service.PasswordService;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -29,6 +27,12 @@ import java.util.Base64;
 import java.time.Instant;
 import java.util.List;
 
+/**
+ * Default implementation of authentication and refresh-token workflows.
+ *
+ * <p>This service performs email/password login, brute-force throttling, access-token
+ * issuance, refresh-token hashing, refresh-token rotation, and last-login tracking.</p>
+ */
 @Service
 @RequiredArgsConstructor
 public class CustomerAuthServiceImpl implements CustomerAuthService {
@@ -42,6 +46,12 @@ public class CustomerAuthServiceImpl implements CustomerAuthService {
     private final JwtSecurityProperties jwtSecurityProperties;
     private final LoginAttemptService loginAttemptService;
 
+    /**
+     * Authenticates a customer using email/password credentials.
+     *
+     * @param request login request payload
+     * @return access token, refresh token, and identity metadata
+     */
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request) {
@@ -70,6 +80,12 @@ public class CustomerAuthServiceImpl implements CustomerAuthService {
         return buildAuthResponse(customer, token, refreshToken);
     }
 
+    /**
+     * Rotates a refresh token and issues a fresh token pair.
+     *
+     * @param request refresh token request payload
+     * @return newly issued authentication response
+     */
     @Override
     @Transactional
     public AuthResponse refresh(RefreshTokenRequest request) {
@@ -94,6 +110,9 @@ public class CustomerAuthServiceImpl implements CustomerAuthService {
         return buildAuthResponse(customer, token, nextRefreshToken);
     }
 
+    /**
+     * Builds the outward-facing authentication response.
+     */
     private AuthResponse buildAuthResponse(Customer customer, JwtTokenService.JwtToken token, IssuedRefreshToken refreshToken) {
         List<String> roles = customer.getRoles().stream().map(Role::getName).toList();
         List<String> permissions = customer.getRoles().stream()
@@ -115,6 +134,9 @@ public class CustomerAuthServiceImpl implements CustomerAuthService {
         );
     }
 
+    /**
+     * Creates, hashes, stores, and returns a new refresh token for the customer.
+     */
     private IssuedRefreshToken issueRefreshToken(Customer customer) {
         Instant issuedAt = Instant.now();
         Instant expiresAt = issuedAt.plus(jwtSecurityProperties.refreshTokenTtl());
@@ -129,12 +151,18 @@ public class CustomerAuthServiceImpl implements CustomerAuthService {
         return new IssuedRefreshToken(rawToken, expiresAt);
     }
 
+    /**
+     * Generates a high-entropy opaque refresh token value.
+     */
     private String generateTokenValue() {
         byte[] tokenBytes = new byte[32];
         SECURE_RANDOM.nextBytes(tokenBytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(tokenBytes);
     }
 
+    /**
+     * Hashes refresh tokens before persistence so the database never stores them in raw form.
+     */
     private String hashToken(String tokenValue) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -145,14 +173,19 @@ public class CustomerAuthServiceImpl implements CustomerAuthService {
         }
     }
 
+    /** @return standard login failure exception used to avoid leaking account existence */
     private InvalidUsernameOrPassword unauthorized() {
         return new InvalidUsernameOrPassword("Invalid email or password");
     }
 
+    /** @return standard refresh-token failure exception */
     private InvalidRefreshTokenException invalidRefreshToken() {
         return new InvalidRefreshTokenException("Invalid refresh token");
     }
 
+    /**
+     * Internal container for raw refresh tokens before they are returned to the caller.
+     */
     private record IssuedRefreshToken(String tokenValue, Instant expiresAt) {
     }
 }

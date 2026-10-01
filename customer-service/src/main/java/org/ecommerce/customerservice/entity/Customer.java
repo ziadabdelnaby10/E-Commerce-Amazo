@@ -10,6 +10,12 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
+/**
+ * Customer aggregate root persisted by customer-service.
+ *
+ * <p>The entity stores identity, profile, lifecycle, and authorization linkage data.
+ * Soft deletion is represented by {@code deletedAt}; active reads always filter that field.</p>
+ */
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
@@ -73,6 +79,9 @@ public class Customer {
     @ToString.Exclude
     private Set<Role> roles = new HashSet<>();
 
+    /**
+     * Initializes lifecycle defaults before the entity is inserted.
+     */
     @PrePersist
     void prePersist() {
         Instant now = Instant.now();
@@ -88,6 +97,9 @@ public class Customer {
         updatedAt = now;
     }
 
+    /**
+     * Refreshes the modification timestamp before update.
+     */
     @PreUpdate
     void preUpdate() {
         updatedAt = Instant.now();

@@ -1,8 +1,10 @@
 server:
+  # External entrypoint port for clients hitting the API gateway.
   port: ${SERVER_PORT:9080}
 
 spring:
   config:
+    # Also allow local .env-based overrides when running outside containers.
     import: optional:file:.env[.properties]
   cloud:
     gateway:
@@ -12,17 +14,21 @@ spring:
           # hardcoded host:port pairs, which is what allows services to scale behind it.
           routes:
             - id: customer-auth-service
+              # Authentication requests are forwarded to customer-service.
               uri: lb://customer-service
               predicates:
                 - Path=/api/v1/auth,/api/v1/auth/**
             - id: inventory-service
+              # Inventory traffic is routed to inventory-service through discovery.
               uri: lb://inventory-service
               predicates:
                 - Path=/api/v1/inventory/**
               filters:
                 - name: CircuitBreaker
                   args:
+                    # Dedicated circuit breaker instance for inventory endpoints.
                     name: inventoryServiceCircuitBreaker
+                    # Local fallback endpoint executed when the route is unavailable.
                     fallbackUri: forward:/fallback/inventory
             - id: order-service
               uri: lb://order-service
@@ -60,12 +66,18 @@ resilience4j:
   circuitbreaker:
     configs:
       default:
+        # Number of calls tracked when calculating the failure rate.
         slidingWindowSize: 20
+        # Open the circuit when half or more of recent calls fail.
         failureRateThreshold: 50
+        # Time to keep the breaker open before trying half-open recovery calls.
         waitDurationInOpenState: 10s
+        # Test calls permitted while the breaker is half-open.
         permittedNumberOfCallsInHalfOpenState: 5
+        # Expose breaker state through health endpoints.
         registerHealthIndicator: true
     instances:
+      # Service-specific breakers all inherit the shared default behavior.
       inventoryServiceCircuitBreaker:
         baseConfig: default
       orderServiceCircuitBreaker:
@@ -77,17 +89,22 @@ resilience4j:
   timelimiter:
     configs:
       default:
+        # Global timeout for gateway-proxied calls protected by resilience4j.
         timeoutDuration: ${GATEWAY_TIMEOUT:5s}
 
 application:
   security:
+    # Enables JWT validation and identity claim relaying at the gateway layer.
     enabled: true
     jwt:
+      # Shared HMAC secret used to verify tokens issued by the authentication service.
       secret: ${JWT_SECRET}
+      # Expected issuer claim embedded in tokens.
       issuer: ${JWT_ISSUER:ecommerce-platform}
 
 management:
   endpoints:
     web:
       exposure:
+        # Include gateway actuator endpoint for route inspection and diagnostics.
         include: health,info,prometheus,gateway

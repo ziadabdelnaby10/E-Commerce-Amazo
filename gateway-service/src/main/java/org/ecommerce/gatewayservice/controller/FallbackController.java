@@ -17,26 +17,52 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/fallback")
 public class FallbackController {
 
+    /**
+     * Fallback response for customer-service routes.
+     *
+     * @return standardized service unavailable response
+     */
     @RequestMapping("/customers")
     public ResponseEntity<GeneralResponse<String>> customersFallback() {
         return unavailable("Customer Service is temporarily unavailable");
     }
 
+    /**
+     * Fallback response for inventory-service routes.
+     *
+     * @return standardized service unavailable response
+     */
     @RequestMapping("/inventory")
     public ResponseEntity<GeneralResponse<String>> inventoryFallback() {
         return unavailable("Inventory Service is temporarily unavailable");
     }
 
+    /**
+     * Fallback response for order-service routes.
+     *
+     * @return standardized service unavailable response
+     */
     @RequestMapping("/orders")
     public ResponseEntity<GeneralResponse<String>> ordersFallback() {
         return unavailable("Order Service is temporarily unavailable");
     }
 
+    /**
+     * Fallback response for payment-service routes.
+     *
+     * @return standardized service unavailable response
+     */
     @RequestMapping("/payments")
     public ResponseEntity<GeneralResponse<String>> paymentsFallback() {
         return unavailable("Payment Service is temporarily unavailable");
     }
 
+    /**
+     * Builds a common 503 response payload for circuit-breaker fallbacks.
+     *
+     * @param message service-specific fallback message
+     * @return HTTP 503 response body
+     */
     private ResponseEntity<GeneralResponse<String>> unavailable(String message) {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(GeneralResponse.of(HttpStatus.SERVICE_UNAVAILABLE.value(), message));

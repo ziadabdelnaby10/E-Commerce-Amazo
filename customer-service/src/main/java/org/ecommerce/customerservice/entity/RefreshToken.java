@@ -10,6 +10,12 @@ import lombok.ToString;
 
 import java.time.Instant;
 
+/**
+ * Persisted refresh token metadata.
+ *
+ * <p>The raw token is never stored; instead a SHA-256 hash is persisted so leaked database
+ * contents cannot be replayed directly as refresh credentials.</p>
+ */
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
@@ -53,6 +59,9 @@ public class RefreshToken {
     @Column(name = "user_agent", length = 500)
     private String userAgent;
 
+    /**
+     * Initializes audit defaults before insertion.
+     */
     @PrePersist
     void prePersist() {
         if (createdAt == null) {

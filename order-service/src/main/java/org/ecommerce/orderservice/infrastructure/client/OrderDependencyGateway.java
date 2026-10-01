@@ -10,6 +10,12 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Facade over downstream customer, inventory, and payment clients.
+ *
+ * <p>The order application service depends on this gateway rather than individual Feign clients
+ * so downstream fallback behavior, logging, and payload translation remain centralized.</p>
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -19,6 +25,12 @@ public class OrderDependencyGateway {
     private final PaymentClient paymentClient;
     private final CustomerClient customerClient;
 
+    /**
+     * Checks whether the referenced customer exists.
+     *
+     * <p>This is the strict validation step for order creation. Failures are treated as a
+     * negative result because a new order cannot be created without a valid customer.</p>
+     */
     public Boolean checkCustomerExist(String customerId) {
         try {
             log.info("Checking Customer Exist for Customer Id {}", customerId);
@@ -48,6 +60,9 @@ public class OrderDependencyGateway {
         }
     }
 
+    /**
+     * Calls inventory-service to reserve stock for the order items.
+     */
     public ReserveInventoryResponse reserveInventory(Order order) {
         try {
             GeneralResponse<ReserveInventoryResponse> response = inventoryClient.reserveInventory(new ReserveInventoryRequest(order.getId(), toInventoryItems(order)));
@@ -62,6 +77,9 @@ public class OrderDependencyGateway {
         }
     }
 
+    /**
+     * Calls inventory-service to release previously reserved stock.
+     */
     public void releaseInventory(Order order) {
         try {
             inventoryClient.releaseInventory(new ReleaseInventoryRequest(order.getId(), toInventoryItems(order)));
@@ -70,6 +88,9 @@ public class OrderDependencyGateway {
         }
     }
 
+    /**
+     * Calls payment-service to start payment processing for the order.
+     */
     public InitiatePaymentResponse initiatePayment(Order order) {
         try {
             GeneralResponse<InitiatePaymentResponse> response = paymentClient.initiatePayment(new InitiatePaymentRequest(
@@ -90,24 +111,39 @@ public class OrderDependencyGateway {
         }
     }
 
+    /**
+     * Logs a degraded-mode customer lookup failure.
+     */
     private void reserveCustomerFallback(String customerId, Exception ex) {
         log.warn("Customer Information fallback for Customer Id {}", customerId, ex);
     }
 
+    /**
+     * Converts inventory failures into a uniform negative reservation response.
+     */
     private ReserveInventoryResponse reserveInventoryFallback(Order order, Throwable throwable) {
         log.warn("Inventory reservation fallback for order {}", order.getId(), throwable);
         return ReserveInventoryResponse.failed("Inventory service unavailable");
     }
 
+    /**
+     * Logs inventory release failures so they can be retried or repaired operationally.
+     */
     private void releaseInventoryFallback(Order order, Throwable throwable) {
         log.warn("Inventory release fallback for order {}", order.getId(), throwable);
     }
 
+    /**
+     * Converts payment initiation failures into a uniform negative response.
+     */
     private InitiatePaymentResponse initiatePaymentFallback(Order order, Throwable throwable) {
         log.warn("Payment initiation fallback for order {}", order.getId(), throwable);
         return InitiatePaymentResponse.failed("Payment service unavailable");
     }
 
+    /**
+     * Maps order items into the inventory-service reservation DTO shape.
+     */
     private List<ReserveInventoryItemRequest> toInventoryItems(Order order) {
         return order.getItems().stream()
                 .map(item -> new ReserveInventoryItemRequest(item.getProductId(), item.getQuantity()))

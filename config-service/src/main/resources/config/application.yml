@@ -7,27 +7,35 @@
 
 eureka:
   instance:
+    # Prefer hostname-based registration by default; can be switched when needed for container networking.
     prefer-ip-address: ${EUREKA_PREFER_IP:false}
+    # Default hostname used by service discovery clients when no environment override is supplied.
     hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
   client:
     service-url:
+      # Shared Eureka registry location used by all services unless locally overridden.
       defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka}
 
 spring:
   config:
+    # Allow each service to read local developer overrides in addition to config-server values.
     import: optional:file:.env[.properties]
   cloud:
     config:
+      # Environment variables and JVM system properties must win over config-server defaults.
+      # This is essential for Docker, CI, and local overrides.
       override-system-properties: false
 
 management:
   endpoints:
     web:
       exposure:
+        # Expose common operational endpoints to every service by default.
         include: health,info,prometheus
   endpoint:
     health:
       # Container orchestrators need liveness/readiness probes to gate startup ordering.
       probes:
         enabled: true
+      # Health detail is only shown to authorized callers for safer production defaults.
       show-details: when-authorized

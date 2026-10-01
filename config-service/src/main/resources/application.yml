@@ -1,21 +1,28 @@
 spring:
   config:
+    # Also load local developer overrides from a .env file when present.
     import: optional:file:.env[.properties]
   application:
+    # Service id used in logs, Spring metadata, and optionally in discovery.
     name: config-service
   cloud:
     config:
       server:
         native:
+          # Configuration files are served from the packaged /config directory.
+          # This keeps the training project self-contained and easy to run locally.
           search-locations: classpath:/config
   profiles:
+    # Use the native backend instead of Git-backed configuration storage.
     active: native
 
 server:
+  # Well-known port used by the other services when importing remote config.
   port: 8888
 
 management:
   endpoints:
     web:
       exposure:
+        # Expose a minimal actuator surface plus Prometheus metrics for observability.
         include: health,info,prometheus

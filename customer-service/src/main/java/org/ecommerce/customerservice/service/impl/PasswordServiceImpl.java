@@ -6,6 +6,9 @@ import org.ecommerce.customerservice.service.PasswordService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+/**
+ * Password hashing adapter backed by Spring Security's {@link PasswordEncoder}.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -13,11 +16,13 @@ public class PasswordServiceImpl implements PasswordService {
 
     private final PasswordEncoder passwordEncoder;
 
+    /** {@inheritDoc} */
     @Override
     public String encrypt(String password) {
         return passwordEncoder.encode(password);
     }
 
+    /** {@inheritDoc} */
     @Override
     public boolean isPasswordValid(String password, String encryptedPassword) {
         return passwordEncoder.matches(password, encryptedPassword);

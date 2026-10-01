@@ -1,7 +1,9 @@
 spring:
   application:
+    # Logical service name used by Spring Cloud Config and service discovery integration.
     name: gateway-service
   config:
+    # Load service-specific remote configuration from config-service.
     import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
 
 logging:

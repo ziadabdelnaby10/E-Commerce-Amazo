@@ -9,6 +9,13 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
+/**
+ * RBAC role entity.
+ *
+ * <p>Roles group permissions and are assigned to customers through the {@code user_roles}
+ * join table. Authorization decisions are ultimately driven by role and permission claims
+ * emitted into JWTs during login.</p>
+ */
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter

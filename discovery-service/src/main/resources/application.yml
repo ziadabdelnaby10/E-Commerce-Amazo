@@ -1,5 +1,7 @@
 spring:
   application:
+    # Logical application name used when the service fetches its remote configuration.
     name: discovery-service
   config:
+    # Pull the actual server settings from config-service; fall back to localhost for local startup.
     import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}

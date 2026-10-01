@@ -22,6 +22,12 @@ import org.springframework.cache.annotation.Caching;
 
 import java.util.UUID;
 
+/**
+ * Default implementation of customer registration and profile management.
+ *
+ * <p>This service applies business rules around duplicate emails, password hashing,
+ * default role assignment, soft deletion, and cache population/eviction for hot read paths.</p>
+ */
 @RequiredArgsConstructor
 @Service
 @Slf4j
@@ -33,6 +39,9 @@ public class CustomerServiceImpl implements CustomerService {
     private final PasswordService passwordService;
     private final CustomerMapper customerMapper;
 
+    /**
+     * Registers a new customer account and assigns the default user role.
+     */
     @Transactional
     @Override
     public UUID createCustomer(CustomerRequest request) {
@@ -46,6 +55,9 @@ public class CustomerServiceImpl implements CustomerService {
         return customerRepository.save(customer).getId();
     }
 
+    /**
+     * Updates mutable customer fields and evicts any stale cache entries.
+     */
     @Transactional
     @Override
     @Caching(evict = {
@@ -70,11 +82,17 @@ public class CustomerServiceImpl implements CustomerService {
 
     }
 
+    /**
+     * Returns a page of active customers.
+     */
     @Override
     public Page<CustomerResponse> findAllCustomers(Pageable pageable) {
         return customerRepository.findByDeletedAtIsNull(pageable).map(customerMapper::toCustomerResponse);
     }
 
+    /**
+     * Cached existence check used by downstream services and authorization flows.
+     */
     @Override
     @Cacheable(cacheNames = CacheConfig.CUSTOMER_EXISTS_CACHE, key = "#customerId")
     public Boolean existsById(UUID customerId) {
@@ -93,6 +111,9 @@ public class CustomerServiceImpl implements CustomerService {
                 .orElseThrow(() -> new CustomerNotFoundException("Customer not found with id: " + customerId));
     }
 
+    /**
+     * Soft-deletes a customer and clears any cached lookup results.
+     */
     @Transactional
     @Override
     @Caching(evict = {

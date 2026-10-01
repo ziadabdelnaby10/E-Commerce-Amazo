@@ -7,6 +7,9 @@ import org.hibernate.proxy.HibernateProxy;
 import java.time.Instant;
 import java.util.Objects;
 
+/**
+ * Fine-grained permission entity used by the RBAC model.
+ */
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter

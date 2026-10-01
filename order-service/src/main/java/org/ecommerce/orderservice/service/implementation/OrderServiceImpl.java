@@ -38,6 +38,16 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Default implementation of order orchestration.
+ *
+ * <p>This service coordinates order creation, idempotency reservation, inventory reservation,
+ * payment initiation, order-status history tracking, and outbox event persistence for later
+ * Kafka publication.</p>
+ *
+ * <p>The flow intentionally checks already-processed idempotency keys before any downstream
+ * network call so exact retries can return the cached response immediately.</p>
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -54,6 +64,14 @@ public class OrderServiceImpl implements OrderService {
     private final OrderDependencyGateway dependencyGateway;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Creates an order and coordinates the first steps of the order saga.
+     *
+     * @param userId authenticated user identifier propagated from the gateway/JWT
+     * @param idempotencyKey client-supplied key used to make retried requests safe
+     * @param request order creation payload
+     * @return created order response, or the previously cached response for a completed idempotent request
+     */
     @Override
     @Transactional
     public OrderResponse createOrder(String userId, String idempotencyKey, CreateOrderRequest request) {
@@ -70,6 +88,12 @@ public class OrderServiceImpl implements OrderService {
                 throw new IdempotencyKeyInProgressException(idempotencyKey);
             }
             return objectMapper.convertValue(existing.getResponseBody(), OrderResponse.class);
+        }
+
+        // A brand-new order must belong to a real customer, but we only need the full customer
+        // projection opportunistically to snapshot their email into the order/event payload.
+        if (!Boolean.TRUE.equals(dependencyGateway.checkCustomerExist(userId))) {
+            throw new EntityNotFoundException("User not found with id " + userId);
         }
 
         IdempotencyKey keyRecord = reserveIdempotencyKey(userId, idempotencyKey, request);
@@ -98,7 +122,7 @@ public class OrderServiceImpl implements OrderService {
 
         statusHistoryRepository.save(buildHistory(saved, null, OrderStatus.PENDING, "SYSTEM", "Order created"));
 
-        orderEventRepository.save(buildOrderEvent(saved, "OrderCreated", false));
+        orderEventRepository.save(buildOrderEvent(saved, "OrderCreated"));
 
         ReserveInventoryResponse reservation = dependencyGateway.reserveInventory(saved);
         if (!reservation.reserved()) {
@@ -119,6 +143,9 @@ public class OrderServiceImpl implements OrderService {
         return response;
     }
 
+    /**
+     * Retrieves a single order with its items.
+     */
     @Override
     public OrderResponse getById(Long orderId) {
         Order order = orderRepository.findByIdWithItems(orderId)
@@ -126,6 +153,9 @@ public class OrderServiceImpl implements OrderService {
         return orderMapper.toResponse(order);
     }
 
+    /**
+     * Lists order summaries for a user, optionally filtered by status.
+     */
     @Override
     public Page<OrderSummaryResponse> listByUser(Long userId, OrderStatus status, Pageable pageable) {
         return (status == null
@@ -134,6 +164,9 @@ public class OrderServiceImpl implements OrderService {
                 .map(orderMapper::toOrderSummaryResponse);
     }
 
+    /**
+     * Marks an order as paid when the payment service emits a successful payment event.
+     */
     @Transactional
     @Override
     public void markPaymentCaptured(Long orderId, String eventId) {
@@ -153,6 +186,9 @@ public class OrderServiceImpl implements OrderService {
         orderEventRepository.save(buildExternalEvent(order, eventId, "PaymentCompleted"));
     }
 
+    /**
+     * Marks an order as cancelled when payment processing fails.
+     */
     @Transactional
     @Override
     public void markPaymentFailed(Long orderId, String eventId) {
@@ -171,9 +207,15 @@ public class OrderServiceImpl implements OrderService {
 
         statusHistoryRepository.save(buildHistory(order, oldStatus, OrderStatus.CANCELLED, "payment-service", "Payment failed"));
         orderEventRepository.save(buildExternalEvent(order, eventId, "PaymentFailed"));
-        orderEventRepository.save(buildOrderEvent(order, "OrderCancelled", false));
+        orderEventRepository.save(buildOrderEvent(order, "OrderCancelled"));
     }
 
+    /**
+     * Reserves an idempotency slot for a new create-order request.
+     *
+     * <p>If another request wins the unique-key race first, the existing record is read back so
+     * the caller can decide whether the original request is still in progress or already completed.</p>
+     */
     private IdempotencyKey reserveIdempotencyKey(String userId, String idempotencyKey, CreateOrderRequest request) {
         IdempotencyKey keyRecord = new IdempotencyKey();
         keyRecord.setIdempotencyKey(idempotencyKey);
@@ -192,16 +234,25 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
+    /**
+     * Calculates the order total from the current item set.
+     */
     private BigDecimal calculateTotal(Order order) {
         return order.getItems().stream()
                 .map(item -> item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
+    /**
+     * Generates a human-readable order number independent of the database id.
+     */
     private String generateOrderNumber() {
         return "ORD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 
+    /**
+     * Creates a status-history record for audit and timeline purposes.
+     */
     private OrderStatusHistory buildHistory(Order order, OrderStatus oldStatus, OrderStatus newStatus, String changedBy, String reason) {
         OrderStatusHistory history = new OrderStatusHistory();
         history.setOrder(order);
@@ -213,17 +264,24 @@ public class OrderServiceImpl implements OrderService {
         return history;
     }
 
-    private OrderEvent buildOrderEvent(Order order, String eventType, boolean publishedToKafka) {
+    /**
+     * Creates an outbox event that will be published to Kafka by the scheduled outbox publisher.
+     */
+    private OrderEvent buildOrderEvent(Order order, String eventType) {
         OrderEvent event = new OrderEvent();
         event.setEventId(UUID.randomUUID().toString());
         event.setOrder(order);
         event.setEventType(eventType);
         event.setEventPayload(buildEventPayload(order));
-        event.setPublishedToKafka(publishedToKafka);
+        // Outbox events are persisted first and marked published later by the scheduled publisher.
+        event.setPublishedToKafka(false);
         event.setCreatedAt(Instant.now());
         return event;
     }
 
+    /**
+     * Records an already-published external event inside the local order event stream.
+     */
     private OrderEvent buildExternalEvent(Order order, String eventId, String eventType) {
         OrderEvent event = new OrderEvent();
         event.setEventId(eventId);
@@ -248,6 +306,9 @@ public class OrderServiceImpl implements OrderService {
         return payload;
     }
 
+    /**
+     * Applies a terminal cancellation state when a downstream dependency rejects the workflow.
+     */
     private void applyCancellation(Order order, String changedBy, String reason) {
         OrderStatus oldStatus = order.getStatus();
         order.setPaymentStatus(PaymentStatus.FAILED);
@@ -255,7 +316,7 @@ public class OrderServiceImpl implements OrderService {
         order.setCancelledAt(Instant.now());
         order.setUpdatedAt(Instant.now());
         statusHistoryRepository.save(buildHistory(order, oldStatus, OrderStatus.CANCELLED, changedBy, reason));
-        orderEventRepository.save(buildOrderEvent(order, "OrderCancelled", false));
+        orderEventRepository.save(buildOrderEvent(order, "OrderCancelled"));
     }
 
 //    private OrderSummaryResponse toSummary(OrderSummaryProjection summary) {

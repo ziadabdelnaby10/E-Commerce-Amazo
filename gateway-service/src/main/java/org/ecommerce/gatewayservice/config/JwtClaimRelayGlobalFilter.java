@@ -32,9 +32,21 @@ import java.util.List;
 @ConditionalOnProperty(prefix = "application.security", name = "enabled", havingValue = "true")
 public class JwtClaimRelayGlobalFilter implements GlobalFilter, Ordered {
 
+    /** Header carrying the authenticated user's logical identifier. */
     static final String USER_ID_HEADER = "X-User-Id";
+    /** Header carrying a comma-separated role list extracted from the JWT. */
     static final String USER_ROLES_HEADER = "X-User-Roles";
 
+    /**
+     * Adds relayed identity headers when an authenticated JWT principal exists.
+     *
+     * <p>If no authenticated JWT principal is present, the request is still cleaned of any
+     * client-supplied identity headers before continuing through the chain.</p>
+     *
+     * @param exchange current request/response exchange
+     * @param chain remaining gateway filter chain
+     * @return asynchronous completion signal
+     */
     @NotNull
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -46,6 +58,13 @@ public class JwtClaimRelayGlobalFilter implements GlobalFilter, Ordered {
                 .flatMap(chain::filter);
     }
 
+    /**
+     * Creates a mutated exchange with trusted identity headers derived from the JWT.
+     *
+     * @param exchange current gateway exchange
+     * @param jwt already-validated JWT token
+     * @return new exchange carrying relayed claim headers
+     */
     private ServerWebExchange withRelayedClaims(ServerWebExchange exchange, Jwt jwt) {
         ServerHttpRequest.Builder request = strippedRequestBuilder(exchange);
 
@@ -62,10 +81,25 @@ public class JwtClaimRelayGlobalFilter implements GlobalFilter, Ordered {
         return exchange.mutate().request(request.build()).build();
     }
 
+    /**
+     * Creates a mutated exchange that only removes any client-supplied identity headers.
+     *
+     * @param exchange current gateway exchange
+     * @return sanitized exchange
+     */
     private ServerWebExchange withoutClientSuppliedIdentityHeaders(ServerWebExchange exchange) {
         return exchange.mutate().request(strippedRequestBuilder(exchange).build()).build();
     }
 
+    /**
+     * Returns a request builder with gateway-managed identity headers stripped.
+     *
+     * <p>This prevents a caller from forging identity context by manually injecting headers
+     * intended to be owned by the gateway.</p>
+     *
+     * @param exchange current gateway exchange
+     * @return mutable request builder without relayed identity headers
+     */
     private ServerHttpRequest.Builder strippedRequestBuilder(ServerWebExchange exchange) {
         return exchange.getRequest().mutate()
                 .headers(headers -> {
@@ -74,6 +108,11 @@ public class JwtClaimRelayGlobalFilter implements GlobalFilter, Ordered {
                 });
     }
 
+    /**
+     * Runs this filter late in the chain so it can rely on the authenticated principal already being available.
+     *
+     * @return Spring ordering value
+     */
     @Override
     public int getOrder() {
         return Ordered.LOWEST_PRECEDENCE;

@@ -19,6 +19,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Default implementation of role and permission administration.
+ *
+ * <p>Names are normalized before persistence so authorization checks can rely on
+ * canonical role and permission values regardless of input casing.</p>
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -29,6 +35,7 @@ public class RolePermissionServiceImpl implements RolePermissionService {
     private final RoleRepository roleRepository;
     private final PermissionRepository permissionRepository;
 
+    /** {@inheritDoc} */
     @Override
     public Role getRoleWithName(String roleName) {
         String normalizedRoleName = normalizeRoleName(roleName);
@@ -36,11 +43,13 @@ public class RolePermissionServiceImpl implements RolePermissionService {
                 .orElseThrow(() -> new RoleNotFoundException("Role not found: " + normalizedRoleName));
     }
 
+    /** {@inheritDoc} */
     @Override
     public List<Role> getAllRoles() {
         return roleRepository.findAll();
     }
 
+    /** {@inheritDoc} */
     @Override
     @Transactional
     public Role createRole(CreateRoleRequest request) {
@@ -56,12 +65,14 @@ public class RolePermissionServiceImpl implements RolePermissionService {
         return roleRepository.save(role);
     }
 
+    /** {@inheritDoc} */
     @Override
     public Role getDefaultUserRole() {
         return roleRepository.findByNameIgnoreCase(DEFAULT_USER_ROLE)
                 .orElseThrow(() -> new DefaultRoleMissingException("Default role is missing: " + DEFAULT_USER_ROLE));
     }
 
+    /** {@inheritDoc} */
     @Override
     public Permission getPermissionWithName(String permissionName) {
         String normalizedPermissionName = normalizePermissionName(permissionName);
@@ -69,6 +80,7 @@ public class RolePermissionServiceImpl implements RolePermissionService {
                 .orElseThrow(() -> new PermissionNotFoundException("Permission not found: " + normalizedPermissionName));
     }
 
+    /** {@inheritDoc} */
     @Override
     @Transactional
     public Permission createPermission(CreatePermissionRequest request) {
@@ -85,6 +97,7 @@ public class RolePermissionServiceImpl implements RolePermissionService {
         return permissionRepository.save(permission);
     }
 
+    /** {@inheritDoc} */
     @Override
     @Transactional
     public Role assignPermissionToRole(String roleName, String permissionName) {
@@ -94,15 +107,24 @@ public class RolePermissionServiceImpl implements RolePermissionService {
         return roleRepository.save(role);
     }
 
+    /**
+     * Normalizes input into the canonical {@code ROLE_*} form.
+     */
     private String normalizeRoleName(String roleName) {
         String sanitized = roleName.trim().toUpperCase(Locale.ROOT);
         return sanitized.startsWith("ROLE_") ? sanitized : "ROLE_" + sanitized;
     }
 
+    /**
+     * Normalizes permission names to uppercase for case-insensitive comparison.
+     */
     private String normalizePermissionName(String permissionName) {
         return permissionName.trim().toUpperCase(Locale.ROOT);
     }
 
+    /**
+     * Trims optional text values and converts blanks to {@code null}.
+     */
     private String trimToNull(String value) {
         if (value == null) {
             return null;
