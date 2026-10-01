@@ -76,18 +76,17 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public OrderResponse createOrder(String userId, String idempotencyKey, CreateOrderRequest request) {
 
-        //checkIfUserExist
-        var customer = dependencyGateway.findCustomer(userId);
-        if(customer.isEmpty()) {
-            throw new EntityNotFoundException("User not found with id " + userId);
-        }
-
         IdempotencyKey existing = idempotencyRepository.findByIdempotencyKey(idempotencyKey).orElse(null);
         if (existing != null) {
             if (existing.getResponseBody() == null) {
                 throw new IdempotencyKeyInProgressException(idempotencyKey);
             }
             return objectMapper.convertValue(existing.getResponseBody(), OrderResponse.class);
+        }
+
+        var customer = dependencyGateway.findCustomer(userId);
+        if (customer == null) {
+            customer = java.util.Optional.empty();
         }
 
         // A brand-new order must belong to a real customer, but we only need the full customer

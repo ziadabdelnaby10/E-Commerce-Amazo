@@ -67,9 +67,10 @@ public class OrderDependencyGateway {
         try {
             GeneralResponse<ReserveInventoryResponse> response = inventoryClient.reserveInventory(new ReserveInventoryRequest(order.getId(), toInventoryItems(order)));
             log.info("Inventory reservation response for order {}: {}", order.getId(), response);
-            if (response.statusCode() != 200) {
-                log.warn("Inventory reservation failed for order {}: {}", order.getId(), response.data());
-                return null;
+            if (hasFailedStatus(response) || response.data() == null) {
+                log.warn("Inventory reservation failed for order {}: statusCode={}, payload={}",
+                        order.getId(), response == null ? null : response.statusCode(), response == null ? null : response.data());
+                return ReserveInventoryResponse.failed("Inventory reservation failed");
             }
             return response.data();
         } catch (Exception ex) {
@@ -101,9 +102,10 @@ public class OrderDependencyGateway {
                     order.getCustomerEmail()
             ));
             log.info("Payment initiation response for order {}: {}", order.getId(), response);
-            if (response.statusCode() != 200) {
-                log.warn("Payment initiation failed for order {}: {}", order.getId(), response.data());
-                return null;
+            if (hasFailedStatus(response) || response.data() == null) {
+                log.warn("Payment initiation failed for order {}: statusCode={}, payload={}",
+                        order.getId(), response == null ? null : response.statusCode(), response == null ? null : response.data());
+                return InitiatePaymentResponse.failed("Payment initiation failed");
             }
             return response.data();
         } catch (Exception ex) {
@@ -148,6 +150,10 @@ public class OrderDependencyGateway {
         return order.getItems().stream()
                 .map(item -> new ReserveInventoryItemRequest(item.getProductId(), item.getQuantity()))
                 .toList();
+    }
+
+    private boolean hasFailedStatus(GeneralResponse<?> response) {
+        return response == null || response.statusCode() < 200 || response.statusCode() >= 300;
     }
 }
 

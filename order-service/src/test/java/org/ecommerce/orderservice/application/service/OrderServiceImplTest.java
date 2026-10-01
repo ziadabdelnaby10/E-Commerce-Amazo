@@ -7,6 +7,7 @@ import org.ecommerce.orderservice.domain.dto.request.CreateOrderRequest;
 import org.ecommerce.orderservice.domain.dto.response.OrderResponse;
 import org.ecommerce.orderservice.service.implementation.OrderServiceImpl;
 import org.ecommerce.orderservice.infrastructure.client.OrderDependencyGateway;
+import org.ecommerce.orderservice.infrastructure.client.dto.CustomerResponse;
 import org.ecommerce.orderservice.infrastructure.client.dto.InitiatePaymentResponse;
 import org.ecommerce.orderservice.infrastructure.client.dto.ReserveInventoryResponse;
 import org.ecommerce.orderservice.domain.model.IdempotencyKey;
@@ -36,6 +37,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -93,17 +95,18 @@ class OrderServiceImplTest {
         existing.setIdempotencyKey("k1");
         existing.setResponseBody(objectMapper.valueToTree(cached));
 
-        when(dependencyGateway.checkCustomerExist("6a5e87573c810cff28852bfc")).thenReturn(true);
         when(idempotencyRepository.findByIdempotencyKey("k1")).thenReturn(Optional.of(existing));
 
         OrderResponse result = service.createOrder("6a5e87573c810cff28852bfc", "k1", sampleRequest());
 
         assertThat(result.orderNumber()).isEqualTo("ORD-ABCD1234");
         verify(orderRepository, never()).save(any(Order.class));
+        verifyNoInteractions(dependencyGateway);
     }
 
     @Test
     void createOrderPersistsOrderStatusHistoryAndOutboxEvent() {
+        when(dependencyGateway.findCustomer("6a5e87573c810cff28852bfc")).thenReturn(Optional.empty());
         when(dependencyGateway.checkCustomerExist("6a5e87573c810cff28852bfc")).thenReturn(true);
         when(idempotencyRepository.findByIdempotencyKey("k2")).thenReturn(Optional.empty());
         when(idempotencyRepository.save(any(IdempotencyKey.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -150,6 +153,55 @@ class OrderServiceImplTest {
         verify(statusHistoryRepository, times(1)).save(any());
         verify(orderEventRepository, times(1)).save(any());
         verify(dependencyGateway, times(1)).reserveInventory(any(Order.class));
+    }
+
+    @Test
+    void createOrderSnapshotsCustomerEmailWhenLookupSucceeds() {
+        when(dependencyGateway.findCustomer("6a5e87573c810cff28852bfc"))
+                .thenReturn(Optional.of(new CustomerResponse("6a5e87573c810cff28852bfc", "Jane", "Doe", "jane@example.com")));
+        when(dependencyGateway.checkCustomerExist("6a5e87573c810cff28852bfc")).thenReturn(true);
+        when(idempotencyRepository.findByIdempotencyKey("k3")).thenReturn(Optional.empty());
+        when(idempotencyRepository.save(any(IdempotencyKey.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Order mappedOrder = new Order();
+        OrderItem item = new OrderItem();
+        item.setProductId(99L);
+        item.setProductName("Keyboard");
+        item.setQuantity(2);
+        item.setUnitPrice(new BigDecimal("25.00"));
+        mappedOrder.setItems(Set.of(item));
+
+        when(orderMapper.toOrder(any(CreateOrderRequest.class))).thenReturn(mappedOrder);
+        when(dependencyGateway.reserveInventory(any(Order.class))).thenReturn(ReserveInventoryResponse.success());
+        when(dependencyGateway.initiatePayment(any(Order.class))).thenReturn(new InitiatePaymentResponse("p-2", "AUTHORIZED", null));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
+            Order saved = invocation.getArgument(0);
+            saved.setId(2L);
+            return saved;
+        });
+        when(orderMapper.toResponse(any(Order.class))).thenAnswer(invocation -> {
+            Order saved = invocation.getArgument(0);
+            return new OrderResponse(
+                    saved.getId(),
+                    saved.getOrderNumber(),
+                    saved.getUserId(),
+                    saved.getStatus(),
+                    saved.getPaymentStatus(),
+                    saved.getTotalAmount(),
+                    saved.getCurrency(),
+                    null,
+                    null,
+                    saved.getNotes(),
+                    saved.getCreatedAt(),
+                    saved.getUpdatedAt(),
+                    List.of()
+            );
+        });
+
+        service.createOrder("6a5e87573c810cff28852bfc", "k3", sampleRequest());
+
+        verify(orderRepository).save(any(Order.class));
+        verify(dependencyGateway).initiatePayment(any(Order.class));
     }
 
     private CreateOrderRequest sampleRequest() {
