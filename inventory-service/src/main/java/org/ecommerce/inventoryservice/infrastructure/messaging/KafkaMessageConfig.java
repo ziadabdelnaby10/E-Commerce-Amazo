@@ -1,4 +1,4 @@
-package org.ecommerce.paymentservice.infrastructure.messaging;
+package org.ecommerce.inventoryservice.infrastructure.messaging;
 
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -29,17 +29,17 @@ import java.util.Map;
 public class KafkaMessageConfig {
 
     @Bean
-    NewTopic paymentEventsTopic(@Value("${application.kafka.topics.payment-events:payment-events}") String topicName) {
+    NewTopic inventoryEventsTopic(@Value("${application.kafka.topics.inventory-events:inventory-events}") String topicName) {
         return TopicBuilder.name(topicName).partitions(3).replicas(1).build();
     }
 
     @Bean
-    NewTopic paymentEventsDlqTopic(@Value("${application.kafka.topics.payment-events-dlq:payment-events-dlq}") String topicName) {
+    NewTopic inventoryEventsDlqTopic(@Value("${application.kafka.topics.inventory-events-dlq:inventory-events-dlq}") String topicName) {
         return TopicBuilder.name(topicName).partitions(3).replicas(1).build();
     }
 
     @Bean
-    ProducerFactory<String, String> paymentProducerFactory(
+    ProducerFactory<String, String> inventoryProducerFactory(
             @Value("${spring.kafka.bootstrap-servers:localhost:9092}") String bootstrapServers) {
         Map<String, Object> producerProps = new HashMap<>();
         producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
@@ -50,15 +50,15 @@ public class KafkaMessageConfig {
         return new DefaultKafkaProducerFactory<>(producerProps);
     }
 
-    @Bean("paymentKafkaTemplate")
-    KafkaTemplate<String, String> paymentKafkaTemplate(ProducerFactory<String, String> paymentProducerFactory) {
-        return new KafkaTemplate<>(paymentProducerFactory);
+    @Bean("inventoryKafkaTemplate")
+    KafkaTemplate<String, String> inventoryKafkaTemplate(ProducerFactory<String, String> inventoryProducerFactory) {
+        return new KafkaTemplate<>(inventoryProducerFactory);
     }
 
     @Bean
     ConsumerFactory<String, String> orderEventConsumerFactory(
             @Value("${spring.kafka.bootstrap-servers:localhost:9092}") String bootstrapServers,
-            @Value("${spring.kafka.consumer.group-id:payment-service-orders}") String groupId) {
+            @Value("${application.kafka.consumers.order-group-id:inventory-service-orders}") String groupId) {
         Map<String, Object> consumerProps = new HashMap<>();
         consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
@@ -69,11 +69,11 @@ public class KafkaMessageConfig {
     @Bean("orderEventKafkaListenerContainerFactory")
     ConcurrentKafkaListenerContainerFactory<String, String> orderEventKafkaListenerContainerFactory(
             ConsumerFactory<String, String> orderEventConsumerFactory,
-            KafkaTemplate<String, String> paymentKafkaTemplate,
-            @Value("${application.kafka.topics.payment-events-dlq:payment-events-dlq}") String paymentDlqTopic) {
+            KafkaTemplate<String, String> inventoryKafkaTemplate,
+            @Value("${application.kafka.topics.inventory-events-dlq:inventory-events-dlq}") String inventoryDlqTopic) {
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
-                paymentKafkaTemplate,
-                (record, ex) -> new TopicPartition(paymentDlqTopic, record.partition())
+                inventoryKafkaTemplate,
+                (record, ex) -> new TopicPartition(inventoryDlqTopic, record.partition())
         );
 
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 2L));
@@ -83,4 +83,34 @@ public class KafkaMessageConfig {
         factory.setCommonErrorHandler(errorHandler);
         return factory;
     }
+
+    @Bean
+    ConsumerFactory<String, String> paymentEventConsumerFactory(
+            @Value("${spring.kafka.bootstrap-servers:localhost:9092}") String bootstrapServers,
+            @Value("${application.kafka.consumers.payment-group-id:inventory-service-payments}") String groupId) {
+        Map<String, Object> consumerProps = new HashMap<>();
+        consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        return new DefaultKafkaConsumerFactory<>(consumerProps, new StringDeserializer(), new StringDeserializer());
+    }
+
+    @Bean("paymentEventKafkaListenerContainerFactory")
+    ConcurrentKafkaListenerContainerFactory<String, String> paymentEventKafkaListenerContainerFactory(
+            ConsumerFactory<String, String> paymentEventConsumerFactory,
+            KafkaTemplate<String, String> inventoryKafkaTemplate,
+            @Value("${application.kafka.topics.inventory-events-dlq:inventory-events-dlq}") String inventoryDlqTopic) {
+        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
+                inventoryKafkaTemplate,
+                (record, ex) -> new TopicPartition(inventoryDlqTopic, record.partition())
+        );
+
+        DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 2L));
+
+        ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(paymentEventConsumerFactory);
+        factory.setCommonErrorHandler(errorHandler);
+        return factory;
+    }
 }
+

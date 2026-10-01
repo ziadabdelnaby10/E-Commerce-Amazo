@@ -51,6 +51,7 @@ public class OrderDependencyGateway {
     public ReserveInventoryResponse reserveInventory(Order order) {
         try {
             GeneralResponse<ReserveInventoryResponse> response = inventoryClient.reserveInventory(new ReserveInventoryRequest(order.getId(), toInventoryItems(order)));
+            log.info("Inventory reservation response for order {}: {}", order.getId(), response);
             if (response.statusCode() != 200) {
                 log.warn("Inventory reservation failed for order {}: {}", order.getId(), response.data());
                 return null;
@@ -71,13 +72,19 @@ public class OrderDependencyGateway {
 
     public InitiatePaymentResponse initiatePayment(Order order) {
         try {
-            return paymentClient.initiatePayment(new InitiatePaymentRequest(
+            GeneralResponse<InitiatePaymentResponse> response = paymentClient.initiatePayment(new InitiatePaymentRequest(
                     order.getId(),
                     order.getUserId(),
                     order.getTotalAmount(),
                     order.getCurrency(),
                     order.getCustomerEmail()
             ));
+            log.info("Payment initiation response for order {}: {}", order.getId(), response);
+            if (response.statusCode() != 200) {
+                log.warn("Payment initiation failed for order {}: {}", order.getId(), response.data());
+                return null;
+            }
+            return response.data();
         } catch (Exception ex) {
             return initiatePaymentFallback(order, ex);
         }

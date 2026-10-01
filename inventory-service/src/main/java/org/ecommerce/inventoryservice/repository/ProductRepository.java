@@ -18,6 +18,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     @Query("select (count(p) > 0) from Product p where p.sku = ?1")
     boolean existsBySku(String sku);
 
+    @Query("select p from Product p where p.status = ?1")
     List<Product> findByStatus(ProductStatus status);
 }
 

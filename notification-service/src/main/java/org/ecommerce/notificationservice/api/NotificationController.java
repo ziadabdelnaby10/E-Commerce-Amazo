@@ -49,14 +49,14 @@ public class NotificationController {
 
     @GetMapping("/preferences/{userId}")
     @PreAuthorize("authentication != null and authentication.principal instanceof T(org.springframework.security.oauth2.jwt.Jwt) and authentication.principal.claims['userId'] == #userId.toString() or hasAnyAuthority('VIEW_USERS')")
-    public ResponseEntity<GeneralResponse<NotificationPreferenceResponse>> getPreferences(@PathVariable Long userId) {
+    public ResponseEntity<GeneralResponse<NotificationPreferenceResponse>> getPreferences(@PathVariable String userId) {
         return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), notificationService.getPreferences(userId)));
     }
 
     @PutMapping("/preferences/{userId}")
     @PreAuthorize("authentication != null and authentication.principal instanceof T(org.springframework.security.oauth2.jwt.Jwt) and authentication.principal.claims['userId'] == #userId.toString()")
     public ResponseEntity<GeneralResponse<NotificationPreferenceResponse>> updatePreferences(
-            @PathVariable Long userId,
+            @PathVariable String userId,
             @RequestBody UpdateNotificationPreferenceRequest request
     ) {
         return ResponseEntity.ok(GeneralResponse.of(HttpStatus.OK.value(), notificationService.updatePreferences(userId, request)));

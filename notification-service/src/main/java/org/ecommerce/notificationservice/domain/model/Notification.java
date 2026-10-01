@@ -40,7 +40,7 @@ public class Notification {
     private String notificationId;
 
     @Column(name = "user_id", nullable = false)
-    private Long userId;
+    private String userId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, columnDefinition = "notification_type")
@@ -109,6 +109,7 @@ public class Notification {
     private Long version;
 
     @OneToMany(mappedBy = "notification", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<NotificationLog> logs = new ArrayList<>();
 }
 

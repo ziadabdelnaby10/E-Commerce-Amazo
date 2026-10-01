@@ -26,7 +26,7 @@ public class NotificationPreference {
     private Long id;
 
     @Column(name = "user_id", nullable = false, unique = true)
-    private Long userId;
+    private String userId;
 
     @Column(name = "email_on_order_created", nullable = false)
     private boolean emailOnOrderCreated;

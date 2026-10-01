@@ -8,6 +8,22 @@ spring:
       enabled: false
   main:
     web-application-type: servlet
+  datasource:
+    url: jdbc:postgresql://localhost:5434/customer_test_db
+    username: postgres
+    password: rootroot
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+  flyway:
+    enabled: false
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: rootroot
 
 eureka:
   client:
@@ -16,6 +32,8 @@ eureka:
 # Security is enabled in tests as well, so the JWT filter chain and the @PreAuthorize
 # rules are exercised exactly like in production.
 application:
+  cache:
+    enabled: false
   security:
     enabled: true
     jwt:
@@ -23,3 +41,6 @@ application:
       issuer: ecommerce-platform
       access-token-ttl: 15m
       refresh-token-ttl: 30d
+  login:
+    max-attempts: 5
+    lockout-window: 15m

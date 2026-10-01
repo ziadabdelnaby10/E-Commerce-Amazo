@@ -79,7 +79,7 @@ class NotificationApplicationServiceTest {
     void processInboundEventSendsEmailAndPublishesOutboundEvent() {
         when(eventRepository.existsByEventId("evt-2")).thenReturn(false);
         when(eventRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        when(preferenceRepository.findByUserId(11L)).thenReturn(Optional.of(enabledPreference(11L)));
+        when(preferenceRepository.findByUserId("11L")).thenReturn(Optional.of(enabledPreference("11L")));
         when(templateRepository.findByNameAndTypeAndActiveTrue("order_confirmation", NotificationType.EMAIL)).thenReturn(Optional.of(template()));
         when(notificationRepository.save(any(Notification.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -96,7 +96,7 @@ class NotificationApplicationServiceTest {
         verify(notificationRepository, times(1)).save(any(Notification.class));
     }
 
-    private NotificationPreference enabledPreference(Long userId) {
+    private NotificationPreference enabledPreference(String userId) {
         NotificationPreference preference = new NotificationPreference();
         preference.setUserId(userId);
         preference.setEmailOnOrderCreated(true);

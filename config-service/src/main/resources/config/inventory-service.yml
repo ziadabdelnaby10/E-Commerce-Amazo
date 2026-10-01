@@ -27,8 +27,31 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:rootroot}
       timeout: 2s
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      acks: all
+      retries: 3
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: inventory-service-orders
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: record
 
 application:
+  kafka:
+    topics:
+      order-events: order-events
+      payment-events: payment-events
+      inventory-events: inventory-events
+      inventory-events-dlq: inventory-events-dlq
+    consumers:
+      order-group-id: inventory-service-orders
+      payment-group-id: inventory-service-payments
   security:
     enabled: true
     jwt:

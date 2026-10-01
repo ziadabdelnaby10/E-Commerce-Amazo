@@ -59,8 +59,8 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse createOrder(String userId, String idempotencyKey, CreateOrderRequest request) {
 
         //checkIfUserExist
-        Boolean customer = dependencyGateway.checkCustomerExist(userId);
-        if(customer == null || !customer) {
+        var customer = dependencyGateway.findCustomer(userId);
+        if(customer.isEmpty()) {
             throw new EntityNotFoundException("User not found with id " + userId);
         }
 
@@ -76,7 +76,7 @@ public class OrderServiceImpl implements OrderService {
 
         Order order = orderMapper.toOrder(request);
         order.setUserId(userId);
-        order.setCustomerEmail(dependencyGateway.findCustomer(userId)
+        order.setCustomerEmail(customer
                 .map(CustomerResponse::email)
                 .orElse(null));
         order.setOrderNumber(generateOrderNumber());

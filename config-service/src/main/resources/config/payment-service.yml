@@ -32,6 +32,13 @@ spring:
       retries: 3
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: payment-service-orders
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: record
 
 server:
   port: ${SERVER_PORT:9004}
@@ -41,6 +48,7 @@ server:
 application:
   kafka:
     topics:
+      order-events: order-events
       payment-events: payment-events
       payment-events-dlq: payment-events-dlq
   security:

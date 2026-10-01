@@ -37,7 +37,7 @@ END $$;
 CREATE TABLE IF NOT EXISTS notifications (
     id BIGSERIAL PRIMARY KEY,
     notification_id VARCHAR(50) NOT NULL UNIQUE,  -- UUID
-    user_id BIGINT NOT NULL,  -- Foreign key to User Service
+    user_id VARCHAR(50) NOT NULL,  -- Foreign key to User Service
     type notification_type NOT NULL,
     subject VARCHAR(255),  -- For email
     body TEXT NOT NULL,
@@ -74,7 +74,7 @@ CREATE INDEX idx_notifications_notification_id ON notifications(notification_id)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS notification_preferences (
     id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL UNIQUE,  -- Foreign key to User Service
+    user_id VARCHAR(50) NOT NULL UNIQUE,  -- Foreign key to User Service
     email_on_order_created BOOLEAN DEFAULT true,
     email_on_order_shipped BOOLEAN DEFAULT true,
     email_on_order_delivered BOOLEAN DEFAULT true,
@@ -210,7 +210,7 @@ CREATE INDEX idx_failed_notifications_next_retry_time ON failed_notifications(ne
 -- =====================================================
 CREATE TABLE IF NOT EXISTS email_bounces (
     id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL,
+    user_id VARCHAR(50) NOT NULL,
     email_address VARCHAR(255) NOT NULL,
     bounce_type VARCHAR(50),  -- 'HARD', 'SOFT', 'COMPLAINT'
     bounce_reason VARCHAR(500),

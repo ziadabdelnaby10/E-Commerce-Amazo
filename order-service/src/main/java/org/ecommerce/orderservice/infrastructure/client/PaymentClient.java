@@ -1,5 +1,6 @@
 package org.ecommerce.orderservice.infrastructure.client;
 
+import org.ecommerce.orderservice.domain.dto.response.GeneralResponse;
 import org.ecommerce.orderservice.infrastructure.client.dto.InitiatePaymentRequest;
 import org.ecommerce.orderservice.infrastructure.client.dto.InitiatePaymentResponse;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -14,6 +15,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 public interface PaymentClient {
 
     @PostMapping
-    InitiatePaymentResponse initiatePayment(@RequestBody InitiatePaymentRequest request);
+    GeneralResponse<InitiatePaymentResponse> initiatePayment(@RequestBody InitiatePaymentRequest request);
 }
 

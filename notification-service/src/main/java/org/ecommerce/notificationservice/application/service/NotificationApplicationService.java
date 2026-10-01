@@ -89,14 +89,14 @@ public class NotificationApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public NotificationPreferenceResponse getPreferences(Long userId) {
+    public NotificationPreferenceResponse getPreferences(String userId) {
         NotificationPreference preference = preferenceRepository.findByUserId(userId)
                 .orElseGet(() -> buildDefaultPreference(userId));
         return notificationMapper.toPreferenceResponse(preference);
     }
 
     @Transactional
-    public NotificationPreferenceResponse updatePreferences(Long userId, UpdateNotificationPreferenceRequest request) {
+    public NotificationPreferenceResponse updatePreferences(String userId, UpdateNotificationPreferenceRequest request) {
         NotificationPreference preference = preferenceRepository.findByUserId(userId)
                 .orElseGet(() -> buildDefaultPreference(userId));
 
@@ -218,7 +218,7 @@ public class NotificationApplicationService {
             return null;
         }
 
-        Long userId = extractUserId(event.payload())
+        String userId = extractUserId(event.payload())
                 .orElseThrow(() -> new IllegalArgumentException("Could not resolve userId from payload"));
 
         NotificationPreference preference = preferenceRepository.findByUserId(userId)
@@ -236,7 +236,7 @@ public class NotificationApplicationService {
         return notificationRepository.save(buildNotificationEntity(event, selection, userId, resolveRecipientAddress(event.payload(), userId)));
     }
 
-    private Notification buildNotificationEntity(InboundEvent event, EventTemplateSelection selection, Long userId, String recipientAddress) {
+    private Notification buildNotificationEntity(InboundEvent event, EventTemplateSelection selection, String userId, String recipientAddress) {
         NotificationTemplate template = templateRepository
                 .findByNameAndTypeAndActiveTrue(selection.templateName(), selection.type())
                 .orElseThrow(() -> new IllegalStateException("Missing active template: " + selection.templateName()));
@@ -341,7 +341,7 @@ public class NotificationApplicationService {
      * relay to customer-service. Producers therefore embed the recipient address in the payload,
      * which also makes each event independently replayable.</p>
      */
-    private String resolveRecipientAddress(JsonNode payload, Long userId) {
+    private String resolveRecipientAddress(JsonNode payload, String userId) {
         if (payload != null && payload.hasNonNull("email")) {
             String email = payload.get("email").asText();
             if (!email.isBlank()) {
@@ -381,7 +381,7 @@ public class NotificationApplicationService {
         };
     }
 
-    private Optional<Long> extractUserId(JsonNode payload) {
+    private Optional<String> extractUserId(JsonNode payload) {
         if (payload == null) {
             return Optional.empty();
         }
@@ -390,13 +390,13 @@ public class NotificationApplicationService {
             if (payload.hasNonNull(key)) {
                 JsonNode value = payload.get(key);
                 if (value.isNumber()) {
-                    return Optional.of(value.asLong());
+                    return Optional.of(value.asText());
                 }
                 if (value.isTextual()) {
-                    Matcher matcher = DIGITS_PATTERN.matcher(value.asText());
-                    if (matcher.find()) {
-                        return Optional.of(Long.parseLong(matcher.group(1)));
-                    }
+//                    Matcher matcher = DIGITS_PATTERN.matcher(value.asText());
+//                    if (matcher.find()) {
+                        return value.asText().isBlank() ? Optional.empty() : Optional.of(value.asText());
+//                    }
                 }
             }
         }
@@ -446,7 +446,7 @@ public class NotificationApplicationService {
         return objectMapper.convertValue(payload, Map.class);
     }
 
-    private NotificationPreference buildDefaultPreference(Long userId) {
+    private NotificationPreference buildDefaultPreference(String userId) {
         NotificationPreference preference = new NotificationPreference();
         preference.setUserId(userId);
         preference.setEmailOnOrderCreated(true);
